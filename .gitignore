@@ -3,5 +3,5 @@
 /bin/
 /.settings/
 /out/
-/.project/
-/.classpath/
+/.classpath
+/.project
