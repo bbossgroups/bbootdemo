@@ -113,7 +113,9 @@ configure(allprojects) { project ->
 		testCompile 'junit:junit:4.12'
 
 		compile  (
-		 [group: 'com.bbossgroups.boot', name: 'bboot-web', version: "${bboot_version}", transitive: true]
+				//jetty,tomcat二选一，如果需要采用tomcat，则注释jetty，打开tomcat
+		 		[group: 'com.bbossgroups.boot', name: 'bboot-starter-jetty', version: "${bboot_version}", transitive: true]
+				//[group: 'com.bbossgroups.boot', name: 'bboot-starter-tomcat', version: "${bboot_version}", transitive: true]
 
 		)
 		compile (
@@ -131,7 +133,7 @@ configure(allprojects) { project ->
 
     }
 
-    task copyJarFiles(type: Copy,dependsOn:'jar'){
+    task copyJarFiles(type: Sync,dependsOn:'jar'){
     	from fileTree(dir: 'lib', include: '**/*.jar')
     	from configurations.compile
     	from jar.outputs
@@ -162,12 +164,12 @@ configure(allprojects) { project ->
     	into 'build/dist/'
     }
 
-    task copyWebrootFiles(type: Copy ){
+    task copyWebrootFiles(type: Sync ){
     	from fileTree(dir: 'WebRoot')
     	into 'build/dist/WebRoot'
     }
 
-    task copyResourceFiles(type: Copy ){
+    task copyResourceFiles(type: Sync ){
     	from fileTree(dir: 'src/test/resources')
     	into 'build/dist/resources'
     }
