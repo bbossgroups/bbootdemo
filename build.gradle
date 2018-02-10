@@ -8,6 +8,7 @@ configure(allprojects) { project ->
 	apply plugin: "idea"
 	apply plugin: "signing"
 	apply plugin: "maven"
+	apply plugin: "war"
 
 	eclipse {
 		jdt {
@@ -108,13 +109,13 @@ configure(allprojects) { project ->
 			}
 		}
 	}
-
+	project.tasks.war.dependsOn(project.tasks.jar)
 	dependencies {
 		testCompile 'junit:junit:4.12'
 
 		compile  (
 				//jetty,tomcat二选一，如果需要采用tomcat，则注释jetty，打开tomcat
-		 		[group: 'com.bbossgroups.boot', name: 'bboot-starter-jetty', version: "${bboot_version}", transitive: true]
+		 		[group: 'com.bbossgroups.boot', name: 'bboot-starter-jetty8', version: "${bboot_version}", transitive: true]
 				//[group: 'com.bbossgroups.boot', name: 'bboot-starter-tomcat', version: "${bboot_version}", transitive: true]
 
 		)
@@ -175,6 +176,7 @@ configure(allprojects) { project ->
     }
 
 }
+webAppDirName = 'WebRoot'
 
 
 
