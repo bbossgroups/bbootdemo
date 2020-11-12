@@ -111,7 +111,7 @@ configure(allprojects) { project ->
 	}
 	project.tasks.war.dependsOn(project.tasks.jar)
 	dependencies {
-		testCompile 'junit:junit:4.12'
+		testCompile 'junit:junit:4.13.1'
 
 		compile  (
 				//jetty,tomcat二选一，如果需要采用tomcat，则注释jetty，打开tomcat
