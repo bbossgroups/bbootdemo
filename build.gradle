@@ -76,9 +76,6 @@ configure(allprojects) { project ->
 		 maven {
 	        url "https://maven.aliyun.com/nexus/content/groups/public"
 	    }
-		maven {
-			url "https://artifacts.elastic.co/maven"
-		}
 		mavenCentral()
 
 	}
@@ -153,10 +150,13 @@ configure(allprojects) { project ->
 
 	
     task copyRTJarFiles(type: Copy,dependsOn:'copyJarFiles'){
-    	from (configurations.runtimeOnly - configurations.api){
+    	from (configurations.runtimeOnly{
 			include 'bboss-rt-**.jar'
 			canBeResolved=true
-		}
+		} - configurations.api{
+			include 'bboss-rt-**.jar'
+			canBeResolved=true
+		})
     	into 'build/dist/'
 
 		rename ("bboss-rt-${bboss_version}.jar", "${project.name}-boot-${bboss_version}.jar")
