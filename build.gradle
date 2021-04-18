@@ -7,7 +7,7 @@ configure(allprojects) { project ->
 	apply plugin: "eclipse"
 	apply plugin: "idea"
 	apply plugin: "signing"
-	apply plugin: "maven"
+	apply plugin: "java-library"
 	apply plugin: "war"
 
 	eclipse {
@@ -38,13 +38,17 @@ configure(allprojects) { project ->
 		}
 	}
 
-	task sourcesJar(type: Jar) {
-		classifier = "sources"
-		from sourceSets.main.allJava
-	}
 
+	task sourcesJar(type: Jar) {
+		archiveClassifier = "sources"
+		from sourceSets.main.allJava
+		duplicatesStrategy = DuplicatesStrategy.INCLUDE
+	}
+	processResources {
+		duplicatesStrategy = DuplicatesStrategy.INCLUDE
+	}
 	task javaDocJar(type: Jar, dependsOn: javadoc) {
-		classifier = "javadoc"
+		archiveClassifier = "javadoc"
 		from javadoc.destinationDir
 	}
 	artifacts {
@@ -70,7 +74,7 @@ configure(allprojects) { project ->
 	repositories {
 		mavenLocal()
 		 maven {
-	        url "http://maven.aliyun.com/nexus/content/groups/public"
+	        url "https://maven.aliyun.com/nexus/content/groups/public"
 	    }
 		maven {
 			url "https://artifacts.elastic.co/maven"
@@ -111,19 +115,19 @@ configure(allprojects) { project ->
 	}
 	project.tasks.war.dependsOn(project.tasks.jar)
 	dependencies {
-		testCompile 'junit:junit:4.13.1'
+		testImplementation 'junit:junit:4.13.1'
 
-		compile  (
+		api  (
 				//jetty,tomcat二选一，如果需要采用tomcat，则注释jetty，打开tomcat
 		 		[group: 'com.bbossgroups.boot', name: 'bboot-starter-jetty8', version: "${bboot_version}", transitive: true],
 				//[group: 'com.bbossgroups.boot', name: 'bboot-starter-jetty', version: "${bboot_version}", transitive: true],
 				//[group: 'com.bbossgroups.boot', name: 'bboot-starter-tomcat', version: "${bboot_version}", transitive: true]
 
 		)
-		compile (
+		api (
          fileTree(dir: 'lib', include: '**/*.jar'),
     	)
-		runtime(
+		runtimeOnly(
 				[group: 'com.bbossgroups', name: 'bboss-rt', version: "${bboss_version}", transitive: false],
 		)
 	}
@@ -137,7 +141,10 @@ configure(allprojects) { project ->
 
     task copyJarFiles(type: Sync,dependsOn:'jar'){
     	from fileTree(dir: 'lib', include: '**/*.jar')
-    	from configurations.compile
+    	from configurations.api{
+			canBeResolved=true
+
+		}
     	from jar.outputs
     	//exclude { details -> details.file.name.startsWith('bboss-rt')  }
     	into 'build/dist/lib'
@@ -146,8 +153,9 @@ configure(allprojects) { project ->
 
 	
     task copyRTJarFiles(type: Copy,dependsOn:'copyJarFiles'){
-    	from (configurations.runtime - configurations.compile){
+    	from (configurations.runtimeOnly - configurations.api){
 			include 'bboss-rt-**.jar'
+			canBeResolved=true
 		}
     	into 'build/dist/'
 
