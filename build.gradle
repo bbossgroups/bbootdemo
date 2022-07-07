@@ -1,3 +1,4 @@
+def profile = System.getProperty("profile") ?: "dev"
 configure(allprojects) { project ->
 	group = PROJ_GROUP
 	version = PROJ_VERSION
@@ -93,9 +94,17 @@ configure(allprojects) { project ->
 				srcDir 'src/main/java'
 
 			}
-			resources {
-				srcDir 'src/main/resources'
-				srcDir 'src/main/java'  exclude '**/*.java'
+			if(profile == "dev") {
+				resources {
+					srcDir 'src/main/resources'
+					srcDir 'src/main/java' exclude '**/*.java'
+				}
+			}
+			else{
+				resources {
+					srcDir 'src/main/resources' exclude '**/*'
+					srcDir 'src/main/java' exclude '**/*.java'
+				}
 			}
 			//compileClasspath = configurations.compile + configurations.runtime
 		}
@@ -110,57 +119,64 @@ configure(allprojects) { project ->
 			}
 		}
 	}
+	configurations {
+		//屏蔽log4j
+		api.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+	}
 	project.tasks.war.dependsOn(project.tasks.jar)
 	dependencies {
 		testImplementation 'junit:junit:4.13.1'
-
+		api(
+				[group: 'org.apache.logging.log4j', name: 'log4j-api', version: "${log4j2_version}", transitive: false],
+				[group: 'org.apache.logging.log4j', name: 'log4j-core', version: "${log4j2_version}", transitive: false],
+				[group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: "${log4j2_version}", transitive: true],
+		)
 		api  (
 				//jetty,tomcat二选一，如果需要采用tomcat，则注释jetty，打开tomcat
-		 		[group: 'com.bbossgroups.boot', name: 'bboot-starter-jetty8', version: "${bboot_version}", transitive: true],
+
 				//[group: 'com.bbossgroups.boot', name: 'bboot-starter-jetty', version: "${bboot_version}", transitive: true],
-				//[group: 'com.bbossgroups.boot', name: 'bboot-starter-tomcat', version: "${bboot_version}", transitive: true]
+				[group: 'com.bbossgroups.boot', name: 'bboot-starter-tomcat', version: "${bboot_version}", transitive: true]
 
 		)
 		api (
          fileTree(dir: 'lib', include: '**/*.jar'),
     	)
-		runtimeOnly(
-				[group: 'com.bbossgroups', name: 'bboss-bootstrap-rt', version: "${bboss_version}", transitive: true],
+		api (
+				[group: 'com.bbossgroups', name: 'bboss-bootstrap-rt', version: "${bboss_version}", transitive: true]
 		)
 	}
 
-    task releaseVersion(type: Zip,dependsOn:['copyToolFiles','copyWebrootFiles','copyResourceFiles']) {
+    task releaseVersion(type: Zip,dependsOn:['copyToolFiles','copyWebrootFiles','copyResourcesfiles']) {
         //appendix = 'wrapper'
 
        from 'build/dist/'
 
     }
 
-    task copyJarFiles(type: Sync,dependsOn:'jar'){
-    	from fileTree(dir: 'lib', include: '**/*.jar')
-    	from configurations.api{
+	task copyJarFiles(type: Sync,dependsOn:'jar'){
+		from configurations.api{
 			canBeResolved=true
 
 		}
-    	from jar.outputs
-    	//exclude { details -> details.file.name.startsWith('bboss-rt')  }
-    	into 'build/dist/lib'
-    }
+		from jar.outputs
+		exclude { details -> details.file.name.startsWith('bboss-rt')  }
+		into 'build/dist/lib'
+
+	}
 
 
-	
-    task copyRTJarFiles(type: Copy,dependsOn:'copyJarFiles'){
-    	from (configurations.runtimeOnly{
-			include 'bboss-rt-**.jar'
+
+
+	task copyRTJarFiles(type: Copy,dependsOn:'copyJarFiles'){
+
+		from configurations.api{
 			canBeResolved=true
-		} - configurations.api{
-			include 'bboss-rt-**.jar'
-			canBeResolved=true
-		})
-    	into 'build/dist/'
 
-		rename ("bboss-rt-${bboss_version}.jar", "${project.name}-boot-${bboss_version}.jar")
-    }
+		}
+		include { details -> details.file.name.startsWith('bboss-rt')  }
+		into 'build/dist'
+		rename ("bboss-rt-${bboss_version}.jar", "${project.name}-${bboss_version}.jar")
+	}
     task copyToolFiles(type: Copy ,dependsOn:'copyRTJarFiles')  {
     	from ('runfiles')
     	{
@@ -179,10 +195,11 @@ configure(allprojects) { project ->
     	into 'build/dist/WebRoot'
     }
 
-    task copyResourceFiles(type: Sync ){
-    	from fileTree(dir: 'src/test/resources')
-    	into 'build/dist/resources'
-    }
+	task copyResourcesfiles(type: Sync )  {
+		from fileTree(dir: 'src/main/resources')
+		filteringCharset = 'UTF-8'
+		into 'build/dist/resources'
+	}
 
 }
 webAppDirName = 'WebRoot'
