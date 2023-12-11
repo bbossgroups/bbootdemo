@@ -134,8 +134,8 @@ configure(allprojects) { project ->
 		api  (
 				//jetty,tomcat二选一，如果需要采用tomcat，则注释jetty，打开tomcat
 
-				//[group: 'com.bbossgroups.boot', name: 'bboot-starter-jetty', version: "${bboot_version}", transitive: true],
-				[group: 'com.bbossgroups.boot', name: 'bboot-starter-tomcat', version: "${bboot_version}", transitive: true]
+				[group: 'com.bbossgroups.boot', name: 'bboot-starter-jetty', version: "${bboot_version}", transitive: true],
+//				[group: 'com.bbossgroups.boot', name: 'bboot-starter-tomcat', version: "${bboot_version}", transitive: true]
 
 		)
 		api (
