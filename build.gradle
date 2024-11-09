@@ -126,6 +126,7 @@ configure(allprojects) { project ->
 	project.tasks.war.dependsOn(project.tasks.jar)
 	dependencies {
 		testImplementation 'junit:junit:4.13.1'
+        compileOnly 'javax.jws:javax.jws-api:1.1'
 		api(
 				[group: 'org.apache.logging.log4j', name: 'log4j-api', version: "${log4j2_version}", transitive: false],
 				[group: 'org.apache.logging.log4j', name: 'log4j-core', version: "${log4j2_version}", transitive: false],
