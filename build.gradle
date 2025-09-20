@@ -29,8 +29,8 @@ configure(allprojects) { project ->
 	}
 
 	tasks.withType(Javadoc) {
-		sourceCompatibility = JAVADOC_SOURCE_LEVEL
-		targetCompatibility = JAVADOC_COMPILER_LEVEL
+//		
+//		
 		options.encoding = 'UTF-8'
 		// disable the crazy super-strict doclint tool in Java 8
         // noinspection SpellCheckingInspection
@@ -136,8 +136,8 @@ configure(allprojects) { project ->
 		api  (
 				//jetty,tomcat二选一，如果需要采用tomcat，则注释jetty，打开tomcat
 
-				[group: 'com.bbossgroups.boot', name: 'bboot-starter-jetty', version: bboot_version, transitive: true],
-//				[group: 'com.bbossgroups.boot', name: 'bboot-starter-tomcat', version: bboot_version, transitive: true],
+//				[group: 'com.bbossgroups.boot', name: 'bboot-starter-jetty', version: bboot_version, transitive: true],
+				[group: 'com.bbossgroups.boot', name: 'bboot-starter-tomcat', version: bboot_version, transitive: true],
 
 		)
 		api (
@@ -156,11 +156,25 @@ configure(allprojects) { project ->
         from 'build/dist/'
 
     }
+// 创建可解析的配置
+    configurations {
+        apiResolvable {
+            canBeResolved = true
+            extendsFrom api
+        }
+        compileOnlyResolvable {
+            canBeResolved = true
+            extendsFrom compileOnly
+        }
 
+        runtimeOnlyResolvable {
+            canBeResolved = true
+            extendsFrom runtimeOnly
+        }
+    }
     tasks.register('copyJarFiles', Sync) {
         dependsOn 'jar'
-        from configurations.api {
-            canBeResolved = true
+        from configurations.apiResolvable {
 
         }
         from jar.outputs
@@ -173,8 +187,7 @@ configure(allprojects) { project ->
     tasks.register('copyRTJarFiles', Copy) {
         dependsOn 'copyJarFiles'
 
-        from configurations.api {
-            canBeResolved = true
+        from configurations.apiResolvable {
 
         }
         include { details -> details.file.name.startsWith('bboss-rt') }
@@ -207,7 +220,6 @@ configure(allprojects) { project ->
 	}
 
 }
-webAppDirName = 'WebRoot'
 
 
 
