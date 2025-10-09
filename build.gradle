@@ -83,10 +83,9 @@ configure(allprojects) { project ->
 	}
 	if(project.getProperty('skipTest').equals("true"))
 	{
-		compileTestJava.enabled=false
-		processTestResources.enabled=false
-		testClasses.enabled = false
-		test.enabled = false
+        tasks.withType(Test) {
+            enabled = false
+        }
 	}
 
 	sourceSets {
@@ -146,7 +145,9 @@ configure(allprojects) { project ->
 		api (
 				[group: 'com.bbossgroups', name: 'bboss-bootstrap-rt', version: bboss_version, transitive: true]
 		)
-        
+
+
+        api group: 'io.projectreactor', name: 'reactor-core', version: '3.7.11'
 	}
 
     tasks.register('releaseVersion', Zip) {

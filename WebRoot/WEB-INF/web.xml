@@ -54,6 +54,7 @@
 	<servlet>
         <servlet-name>mvc</servlet-name>
         <servlet-class>org.frameworkset.web.servlet.DispatchServlet</servlet-class>
+        <async-supported>true</async-supported>
         <init-param>
             <param-name>contextConfigLocation</param-name>
             <param-value>/WEB-INF/conf/bboss-*.xml</param-value>
@@ -66,7 +67,33 @@
         <url-pattern>*.page</url-pattern>
     </servlet-mapping>
 
+    <servlet-mapping>
+        <servlet-name>mvc</servlet-name>
+        <url-pattern>*.api</url-pattern>
+    </servlet-mapping>
 
+    <servlet>
+        <servlet-name>AsyncStreamServlet</servlet-name>
+        <servlet-class>org.frameworkset.web.react.AsyncStreamServlet</servlet-class>
+        <async-supported>true</async-supported>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>AsyncStreamServlet</servlet-name>
+        <url-pattern>/async-stream</url-pattern>
+    </servlet-mapping>
+
+
+    <servlet>
+        <servlet-name>DynamicAsyncServlet</servlet-name>
+        <servlet-class>org.frameworkset.web.react.DynamicAsyncServlet</servlet-class>
+        <async-supported>true</async-supported>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>DynamicAsyncServlet</servlet-name>
+        <url-pattern>/dasync-stream</url-pattern>
+    </servlet-mapping>
 
  <servlet>
   <display-name>RPCHttpServLet</display-name>

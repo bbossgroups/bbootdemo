@@ -1,15 +1,18 @@
-<property name="testWebsocket" class="org.frameworkset.web.socket.config.WebSocketRegistryMeta" enablewebsocket="true"
-	f:websocketUrl="/websocket.page" f:sockJSUrl="/sockjs/websck/info.page">
-	
-	<property name="websocketHandler" class="org.frameworkset.web.socket.SystemWebSocketHandler"  f:supportsPartialMessages="true"/>
-	<property name="interceptors">
-		<list componentType="bean">
-			<property class="org.frameworkset.web.socket.HandshakeInterceptor" f:createSession="true"  f:copyAllAttributes="true" f:copyHttpSessionId="true"/>
-		</list>
-	</property>
-	
-	<property name="allowedOrigins" value="*"/>
-		
-</property>
+<properties>
+    <property name="testWebsocket" class="org.frameworkset.web.socket.config.WebSocketRegistryMeta" enablewebsocket="true"
+        f:websocketUrl="/websocket.page" f:sockJSUrl="/sockjs/websck/info.page">
+        
+        <property name="websocketHandler" class="org.frameworkset.web.socket.SystemWebSocketHandler"  f:supportsPartialMessages="true"/>
+        <property name="interceptors">
+            <list componentType="bean">
+                <property class="org.frameworkset.web.socket.HandshakeInterceptor" f:createSession="true"  f:copyAllAttributes="true" f:copyHttpSessionId="true"/>
+            </list>
+        </property>
+        
+        <property name="allowedOrigins" value="*"/>
+            
+    </property>
+    <property name="/reactor/*.api" class="org.frameworkset.web.react.ReactorController"/>
+</properties>
 
  

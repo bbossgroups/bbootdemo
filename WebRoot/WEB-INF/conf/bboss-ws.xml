@@ -2,4 +2,4 @@
 	<property name="mysfirstmvcwsservice" 					  
 					  ws:servicePort="mysfirstMVCwsservicePort"				  
 					  class="org.frameworkset.web.ws.WSServiceInMVCImpl"/>
-					  </properties>
+</properties>
