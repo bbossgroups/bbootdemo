@@ -52,6 +52,11 @@ public class ReactorController implements InitializingBean {
     }
 
 
+    /**
+     * http://192.168.137.1:80/demoproject/reactor/deepseekChat.api?message=用Java解释Reactor编程模式
+     * @param message
+     * @return
+     */
     public Flux<String> deepseekChat(String message) {
         Map<String, Object> requestMap = new HashMap<>();
         requestMap.put("model", "deepseek-chat");
