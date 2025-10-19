@@ -54,7 +54,7 @@ public class ReactorController implements InitializingBean {
 
 
     /**
-     * http://192.168.137.1/demoproject/chatpost.html
+     * http://127.0.0.1/demoproject/chatpost.html
      * @param questions
      * @return
      */
