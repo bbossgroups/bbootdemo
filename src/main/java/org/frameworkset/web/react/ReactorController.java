@@ -17,6 +17,7 @@ package org.frameworkset.web.react;
 
 import org.frameworkset.spi.InitializingBean;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
+import org.frameworkset.util.annotations.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -53,11 +54,12 @@ public class ReactorController implements InitializingBean {
 
 
     /**
-     * http://192.168.137.1:80/demoproject/reactor/deepseekChat.api?message=用Java解释Reactor编程模式
-     * @param message
+     * http://192.168.137.1/demoproject/chatpost.html
+     * @param questions
      * @return
      */
-    public Flux<String> deepseekChat(String message) {
+    public Flux<String> deepseekChat(@RequestBody Map<String,Object> questions) {
+        String message = (String)questions.get("message");
         Map<String, Object> requestMap = new HashMap<>();
         requestMap.put("model", "deepseek-chat");
 
