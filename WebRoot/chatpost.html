@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reactor流式问答</title>
+    <!-- 引入marked.js库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #chat-container {
+            border: 1px solid #ccc;
+            height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            line-height: 1.5;
+        }
+        .user-message {
+            background-color: #f0f0f0; /* 浅灰色背景 */
+            text-align: right;
+        }
+        .bot-message {
+            background-color: #ffffff; /* 白色背景 */
+        }
+        /* Markdown样式 */
+        .bot-message h1,
+        .bot-message h2,
+        .bot-message h3 {
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+        .bot-message p {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .bot-message pre {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .bot-message code {
+            background-color: #f0f0f0;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .bot-message pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        .bot-message ul,
+        .bot-message ol {
+            padding-left: 20px;
+        }
+        .bot-message blockquote {
+            border-left: 3px solid #ccc;
+            padding-left: 10px;
+            margin-left: 0;
+            color: #666;
+        }
+        #input-container {
+            display: flex;
+            gap: 10px;
+        }
+        #question-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #send-btn {
+            background-color: #007bff;
+            color: white;
+        }
+        #cancel-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        .typing-indicator {
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>Reactor流式问答应用</h1>
+    <div id="chat-container"></div>
+    <div id="input-container">
+        <input type="text" id="question-input" placeholder="请输入你的问题..." />
+        <button id="send-btn">发送</button>
+        <button id="cancel-btn">取消</button>
+    </div>
+
+    <script>
+        class ReactiveChatClient {
+            constructor() {
+                this.eventSource = null;
+                this.abortController = null;
+                this.isStreaming = false;
+                
+                this.chatContainer = document.getElementById('chat-container');
+                this.questionInput = document.getElementById('question-input');
+                this.sendBtn = document.getElementById('send-btn');
+                this.cancelBtn = document.getElementById('cancel-btn');
+                
+                // 配置marked选项
+                marked.setOptions({
+                    breaks: true,
+                    gfm: true
+                });
+                
+                this.initEventListeners();
+            }
+            
+            initEventListeners() {
+                this.sendBtn.addEventListener('click', () => this.sendMessage());
+                this.cancelBtn.addEventListener('click', () => this.cancelStream());
+                this.questionInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.sendMessage();
+                    }
+                });
+            }
+            
+            sendMessage() {
+                const message = this.questionInput.value.trim();
+                if (!message || this.isStreaming) return;
+                
+                // 显示用户消息
+                this.displayMessage(message, 'user');
+                this.questionInput.value = '';
+                
+                // 显示机器人正在输入指示器
+                const indicatorId = this.showTypingIndicator();
+                
+                // 修改为POST请求URL
+                const url = `http://192.168.137.1:80/demoproject/reactor/deepseekChat.api`;
+                
+                // 创建AbortController用于取消请求
+                this.abortController = new AbortController();
+                this.isStreaming = true;
+                
+                // 使用fetch API进行POST流式请求
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: message }),
+                    signal: this.abortController.signal
+                })
+                .then(response => {
+                    // 移除正在输入指示器
+                    this.removeTypingIndicator(indicatorId);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    // 获取响应流
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let botMessageElement = this.createBotMessageElement();
+                    let accumulatedContent = '';
+                    
+                    // 递归读取流数据
+                    const readStream = () => {
+                        reader.read().then(({ done, value }) => {
+                            if (done) {
+                                this.isStreaming = false;
+                                return;
+                            }
+                            
+                            // 解码并处理接收到的数据
+                            const chunk = decoder.decode(value, { stream: true });
+                            accumulatedContent += chunk;
+                            this.updateBotMessage(botMessageElement, accumulatedContent);
+                            
+                            // 继续读取
+                            readStream();
+                        }).catch(error => {
+                            if (error.name !== 'AbortError') {
+                                console.error('Stream reading error:', error);
+                                this.displayErrorMessage('接收数据时出错');
+                            }
+                            this.isStreaming = false;
+                        });
+                    };
+                    
+                    readStream();
+                })
+                .catch(error => {
+                    this.removeTypingIndicator(indicatorId);
+                    this.isStreaming = false;
+                    
+                    if (error.name === 'AbortError') {
+                        this.displayErrorMessage('请求已取消');
+                    } else {
+                        console.error('Fetch error:', error);
+                        this.displayErrorMessage('发送请求时出错: ' + error.message);
+                    }
+                });
+            }
+            
+            cancelStream() {
+                if (this.isStreaming && this.abortController) {
+                    this.abortController.abort();
+                    this.isStreaming = false;
+                    this.displayErrorMessage('请求已被用户取消');
+                }
+            }
+            
+            displayMessage(content, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}-message`;
+                
+                if (sender === 'bot') {
+                    // 对于机器人消息，解析Markdown
+                    messageDiv.innerHTML = marked.parse(content);
+                } else {
+                    // 用户消息保持纯文本
+                    messageDiv.textContent = content;
+                }
+                
+                this.chatContainer.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+            
+            createBotMessageElement() {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message bot-message';
+                this.chatContainer.appendChild(messageDiv);
+                this.scrollToBottom();
+                return messageDiv;
+            }
+            
+            updateBotMessage(element, content) {
+                // 实时更新Markdown内容
+                element.innerHTML = marked.parse(content);
+                this.scrollToBottom();
+            }
+            
+            showTypingIndicator() {
+                const indicator = document.createElement('div');
+                indicator.className = 'message bot-message typing-indicator';
+                indicator.id = 'typing-' + Date.now();
+                indicator.textContent = '正在思考中...';
+                this.chatContainer.appendChild(indicator);
+                this.scrollToBottom();
+                return indicator.id;
+            }
+            
+            removeTypingIndicator(id) {
+                const indicator = document.getElementById(id);
+                if (indicator) {
+                    indicator.remove();
+                }
+            }
+            
+            displayErrorMessage(message) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'message bot-message';
+                errorDiv.style.color = 'red';
+                errorDiv.textContent = message;
+                this.chatContainer.appendChild(errorDiv);
+                this.scrollToBottom();
+            }
+            
+            scrollToBottom() {
+                this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+            }
+        }
+        
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            new ReactiveChatClient();
+        });
+    </script>
+</body>
+</html>
