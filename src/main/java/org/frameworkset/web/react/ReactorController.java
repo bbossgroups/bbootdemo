@@ -17,6 +17,7 @@ package org.frameworkset.web.react;
 
 import org.frameworkset.spi.InitializingBean;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
+import org.frameworkset.spi.remote.http.reactor.ServerEvent;
 import org.frameworkset.util.annotations.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,6 +80,36 @@ public class ReactorController implements InitializingBean {
 //                .doOnComplete(() -> logger.info("\n=== 流完成 ==="))
 //                .doOnError(error -> logger.error("错误: " + error.getMessage(),error));
 //                .subscribe();
+
+    }
+
+
+    /**
+     * http://127.0.0.1/demoproject/chatpostServerEvent.html
+     * @param questions
+     * @return
+     */
+    public Flux<ServerEvent> deepseekChatServerEvent(@RequestBody Map<String,Object> questions) {
+        String message = (String)questions.get("message");
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("model", "deepseek-chat");
+
+        List<Map<String, String>> messages = new ArrayList<>();
+        Map<String, String> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", message);
+        messages.add(userMessage);
+
+        requestMap.put("messages", messages);
+        requestMap.put("stream", true);
+        requestMap.put("max_tokens", 2048);
+        requestMap.put("temperature", 0.7);
+        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent("/chat/completions",requestMap);
+
+        return flux.doOnNext(chunk -> {
+            logger.info(chunk.getData());
+        });
+       
 
     }
 
