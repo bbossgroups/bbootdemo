@@ -12,6 +12,8 @@
         <property name="allowedOrigins" value="*"/>
             
     </property>
+    
+    <property name="/reactor/mono/*.api" class="org.frameworkset.web.react.MonoController"/>
     <property name="/reactor/*.api" class="org.frameworkset.web.react.ReactorController"/>
 </properties>
 

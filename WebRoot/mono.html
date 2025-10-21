@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户信息查询</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .loading {
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <h1>用户信息查询</h1>
+    
+    <div class="form-group">
+        <label for="userId">用户ID:</label>
+        <input type="text" id="userId" placeholder="请输入用户ID" value="123">
+    </div>
+    
+    <button id="searchBtn" onclick="searchUser()">查询用户</button>
+    
+    <div id="loading" class="loading" style="display: none;">正在查询...</div>
+    <div id="error" class="error" style="display: none;"></div>
+    <div id="result" class="result" style="display: none;">
+        <h3>用户信息:</h3>
+        <div id="userInfo"></div>
+    </div>
+
+    <script>
+        // 查询用户信息
+        function searchUser() {
+            const userId = document.getElementById('userId').value;
+            const searchBtn = document.getElementById('searchBtn');
+            const loading = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            const resultDiv = document.getElementById('result');
+            const userInfoDiv = document.getElementById('userInfo');
+            
+            // 清除之前的结果和错误信息
+            errorDiv.style.display = 'none';
+            resultDiv.style.display = 'none';
+            
+            // 验证输入
+            if (!userId) {
+                showError('请输入用户ID');
+                return;
+            }
+            
+            // 显示加载状态
+            searchBtn.disabled = true;
+            loading.style.display = 'block';
+            
+            // 调用后端服务
+            fetch(`http://127.0.0.1/demoproject/reactor/mono/getUser.api?id=${encodeURIComponent(userId)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        //从response中获取错误响应报文（json格式）
+                        return response.json().then(errorData => {return errorData});
+                        
+                         
+                        // throw new Error(`HTTP error! status: ${response.status},\n${response.json()}`);
+                         
+                        // throw new Error(`HTTP error! status: ${response.status},\n${JSON.stringify(response.json())}`);
+                         
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // 显示用户信息
+                    displayUserInfo(data);
+                })
+                .catch(error => {
+                    // 显示错误信息
+                    showError('查询失败: ' + error.message);
+                })
+                .finally(() => {
+                    // 恢复按钮状态
+                    searchBtn.disabled = false;
+                    loading.style.display = 'none';
+                });
+        }
+        
+        // 显示用户信息
+        function displayUserInfo(user) {
+            const userInfoDiv = document.getElementById('userInfo');
+            const resultDiv = document.getElementById('result');
+            
+            if (user) {
+                if(!user.error) {
+                    userInfoDiv.innerHTML = `
+                    <p><strong>用户ID:</strong> ${user.id || 'N/A'}</p>
+                    <p><strong>用户名:</strong> ${user.name || 'N/A'}</p>
+                    <p><strong>邮箱:</strong> ${user.email || 'N/A'}</p>
+                    <p><strong>电话:</strong> ${user.phone || 'N/A'}</p>
+                `;
+                }
+                else{
+                    userInfoDiv.innerHTML = `
+                    <p><strong>查询错误信息:</strong> ${user.error}</p>
+                `;
+                }
+                resultDiv.style.display = 'block';
+            } else {
+                showError('未找到用户信息');
+            }
+        }
+        
+        // 显示错误信息
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+        
+        // 支持回车键查询
+        document.getElementById('userId').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                searchUser();
+            }
+        });
+        
+        // 页面加载完成后聚焦到输入框
+        window.addEventListener('load', function() {
+            document.getElementById('userId').focus();
+        });
+    </script>
+</body>
+</html>

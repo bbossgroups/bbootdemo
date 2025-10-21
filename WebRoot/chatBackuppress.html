@@ -101,80 +101,80 @@
     </style>
 </head>
 <body>
-    <h1>Reactor流式问答应用</h1>
-    <div id="chat-container"></div>
-    <div id="input-container">
-        <input type="text" id="question-input" placeholder="请输入你的问题..." />
-        <button id="send-btn">发送</button>
-        <button id="cancel-btn">取消</button>
-    </div>
+<h1>Reactor流式问答应用</h1>
+<div id="chat-container"></div>
+<div id="input-container">
+    <input type="text" id="question-input" placeholder="请输入你的问题..." />
+    <button id="send-btn">发送</button>
+    <button id="cancel-btn">取消</button>
+</div>
 
-    <script>
-        class ReactiveChatClient {
-            constructor() {
-                this.eventSource = null;
-                this.abortController = null;
-                this.isStreaming = false;
-                
-                this.chatContainer = document.getElementById('chat-container');
-                this.questionInput = document.getElementById('question-input');
-                this.sendBtn = document.getElementById('send-btn');
-                this.cancelBtn = document.getElementById('cancel-btn');
-                
-                // 配置marked选项
-                marked.setOptions({
-                    breaks: true,
-                    gfm: true
-                });
-                
-                this.initEventListeners();
-            }
-            
-            initEventListeners() {
-                this.sendBtn.addEventListener('click', () => this.sendMessage());
-                this.cancelBtn.addEventListener('click', () => this.cancelStream());
-                this.questionInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        this.sendMessage();
-                    }
-                });
-            }
-            
-            sendMessage() {
-                const message = this.questionInput.value.trim();
-                if (!message || this.isStreaming) return;
-                
-                // 显示用户消息
-                this.displayMessage(message, 'user');
-                this.questionInput.value = '';
-                
-                // 显示机器人正在输入指示器
-                const indicatorId = this.showTypingIndicator();
-                
-                // 修改为POST请求URL
-                const url = `http://127.0.0.1/demoproject/reactor/deepseekChatServerEvent.api`;
-                
-                // 创建AbortController用于取消请求
-                this.abortController = new AbortController();
-                this.isStreaming = true;
-                
-                // 使用fetch API进行POST流式请求
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ message: message }),
-                    signal: this.abortController.signal
-                })
+<script>
+    class ReactiveChatClient {
+        constructor() {
+            this.eventSource = null;
+            this.abortController = null;
+            this.isStreaming = false;
+
+            this.chatContainer = document.getElementById('chat-container');
+            this.questionInput = document.getElementById('question-input');
+            this.sendBtn = document.getElementById('send-btn');
+            this.cancelBtn = document.getElementById('cancel-btn');
+
+            // 配置marked选项
+            marked.setOptions({
+                breaks: true,
+                gfm: true
+            });
+
+            this.initEventListeners();
+        }
+
+        initEventListeners() {
+            this.sendBtn.addEventListener('click', () => this.sendMessage());
+            this.cancelBtn.addEventListener('click', () => this.cancelStream());
+            this.questionInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.sendMessage();
+                }
+            });
+        }
+
+        sendMessage() {
+            const message = this.questionInput.value.trim();
+            if (!message || this.isStreaming) return;
+
+            // 显示用户消息
+            this.displayMessage(message, 'user');
+            this.questionInput.value = '';
+
+            // 显示机器人正在输入指示器
+            const indicatorId = this.showTypingIndicator();
+
+            // 修改为POST请求URL
+            const url = `http://127.0.0.1/demoproject/reactor/deepseekChatServerEventBackuppress.api`;
+
+            // 创建AbortController用于取消请求
+            this.abortController = new AbortController();
+            this.isStreaming = true;
+
+            // 使用fetch API进行POST流式请求
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: message }),
+                signal: this.abortController.signal
+            })
                 .then(response => {
                     // 移除正在输入指示器
                     this.removeTypingIndicator(indicatorId);
-                    
+
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    
+
                     // 获取响应流
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
@@ -182,7 +182,7 @@
                     let accumulatedContent = '';
                     // 在ReactiveChatClient类中添加行缓冲区属性
 // 添加处理单行数据的方法
-                  
+
                     let lineBuffer = '';
                     // 修改readStream函数实现逐行处理
                     const readStream = () => {
@@ -192,10 +192,17 @@
                                 if (lineBuffer.trim()) {
                                     try {
                                         const jsonData = JSON.parse(lineBuffer.trim());
-                                        if (jsonData.data) {
-                                            accumulatedContent += jsonData.data;
-                                            this.updateBotMessage(botMessageElement, accumulatedContent);
+                                        //jsonData为数组类型，遍历其中元素
+                                        for (let i = 0; i < jsonData.length; i++) {
+                                            //处理jsonData中的数据
+                                            const line = jsonData[i];
+                                            if (line.data) {
+                                                accumulatedContent += line.data;
+                                                this.updateBotMessage(botMessageElement, accumulatedContent);
+                                            }
                                         }
+                                        
+                                        
                                     } catch (e) {
                                         // 如果不是JSON格式，作为普通文本处理
                                         accumulatedContent += lineBuffer;
@@ -228,10 +235,15 @@
                                 if (line.trim()) {
                                     try {
                                         const jsonData = JSON.parse(line.trim());
-                                        if (jsonData.data) {
-                                            accumulatedContent += jsonData.data;
-                                            this.updateBotMessage(botMessageElement, accumulatedContent);
-                                        }
+                                        //jsonData为数组类型，遍历其中元素
+                                        for (let i = 0; i < jsonData.length; i++) {
+                                            //处理jsonData中的数据
+                                            const lineData = jsonData[i];
+                                            if (lineData.data) {
+                                                accumulatedContent += lineData.data;
+                                                this.updateBotMessage(botMessageElement, accumulatedContent);
+                                            }
+                                        }                                        
                                     } catch (e) {
                                         // 如果不是JSON格式，作为普通文本处理
                                         accumulatedContent += line;
@@ -250,13 +262,13 @@
                             this.isStreaming = false;
                         });
                     };
-                    
+
                     readStream();
                 })
                 .catch(error => {
                     this.removeTypingIndicator(indicatorId);
                     this.isStreaming = false;
-                    
+
                     if (error.name === 'AbortError') {
                         this.displayErrorMessage('请求已取消');
                     } else {
@@ -264,81 +276,81 @@
                         this.displayErrorMessage('发送请求时出错: ' + error.message);
                     }
                 });
-            }
-            
-            cancelStream() {
-                if (this.isStreaming && this.abortController) {
-                    this.abortController.abort();
-                    this.isStreaming = false;
-                    this.displayErrorMessage('请求已被用户取消');
-                }
-            }
-            
-            displayMessage(content, sender) {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = `message ${sender}-message`;
-                
-                if (sender === 'bot') {
-                    // 对于机器人消息，解析Markdown
-                    messageDiv.innerHTML = marked.parse(content);
-                } else {
-                    // 用户消息保持纯文本
-                    messageDiv.textContent = content;
-                }
-                
-                this.chatContainer.appendChild(messageDiv);
-                this.scrollToBottom();
-            }
-            
-            createBotMessageElement() {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'message bot-message';
-                this.chatContainer.appendChild(messageDiv);
-                this.scrollToBottom();
-                return messageDiv;
-            }
-            
-            updateBotMessage(element, content) {
-                // 实时更新Markdown内容
-                element.innerHTML = marked.parse(content);
-                this.scrollToBottom();
-            }
-            
-            showTypingIndicator() {
-                const indicator = document.createElement('div');
-                indicator.className = 'message bot-message typing-indicator';
-                indicator.id = 'typing-' + Date.now();
-                indicator.textContent = '正在思考中...';
-                this.chatContainer.appendChild(indicator);
-                this.scrollToBottom();
-                return indicator.id;
-            }
-            
-            removeTypingIndicator(id) {
-                const indicator = document.getElementById(id);
-                if (indicator) {
-                    indicator.remove();
-                }
-            }
-            
-            displayErrorMessage(message) {
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'message bot-message';
-                errorDiv.style.color = 'red';
-                errorDiv.textContent = message;
-                this.chatContainer.appendChild(errorDiv);
-                this.scrollToBottom();
-            }
-            
-            scrollToBottom() {
-                this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+        }
+
+        cancelStream() {
+            if (this.isStreaming && this.abortController) {
+                this.abortController.abort();
+                this.isStreaming = false;
+                this.displayErrorMessage('请求已被用户取消');
             }
         }
-        
-        // 初始化应用
-        document.addEventListener('DOMContentLoaded', () => {
-            new ReactiveChatClient();
-        });
-    </script>
+
+        displayMessage(content, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+
+            if (sender === 'bot') {
+                // 对于机器人消息，解析Markdown
+                messageDiv.innerHTML = marked.parse(content);
+            } else {
+                // 用户消息保持纯文本
+                messageDiv.textContent = content;
+            }
+
+            this.chatContainer.appendChild(messageDiv);
+            this.scrollToBottom();
+        }
+
+        createBotMessageElement() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot-message';
+            this.chatContainer.appendChild(messageDiv);
+            this.scrollToBottom();
+            return messageDiv;
+        }
+
+        updateBotMessage(element, content) {
+            // 实时更新Markdown内容
+            element.innerHTML = marked.parse(content);
+            this.scrollToBottom();
+        }
+
+        showTypingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.className = 'message bot-message typing-indicator';
+            indicator.id = 'typing-' + Date.now();
+            indicator.textContent = '正在思考中...';
+            this.chatContainer.appendChild(indicator);
+            this.scrollToBottom();
+            return indicator.id;
+        }
+
+        removeTypingIndicator(id) {
+            const indicator = document.getElementById(id);
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        displayErrorMessage(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'message bot-message';
+            errorDiv.style.color = 'red';
+            errorDiv.textContent = message;
+            this.chatContainer.appendChild(errorDiv);
+            this.scrollToBottom();
+        }
+
+        scrollToBottom() {
+            this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+        }
+    }
+
+    // 初始化应用
+    document.addEventListener('DOMContentLoaded', () => {
+        new ReactiveChatClient();
+    });
+</script>
 </body>
 </html>
