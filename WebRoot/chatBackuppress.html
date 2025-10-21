@@ -5,28 +5,79 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reactor流式问答-背压案例</title>
     <!-- 引入marked.js库 -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="js/marked.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
+            max-width: 1080px; /* 原800px * 1.5 */
             margin: 0 auto;
-            padding: 20px;
+            padding: 30px; /* 原20px * 1.5 */
         }
+
         #chat-container {
-            border: 1px solid #ccc;
-            height: 400px;
+            border: 1.5px solid #ccc; /* 原1px * 1.5 */
+            height: 540px; /* 原400px * 1.5 */
             overflow-y: auto;
-            padding: 10px;
-            margin-bottom: 20px;
+            padding: 15px; /* 原10px * 1.5 */
+            margin-bottom: 30px; /* 原20px * 1.5 */
             background-color: #f9f9f9;
         }
+
         .message {
-            margin-bottom: 10px;
-            padding: 8px;
-            border-radius: 4px;
+            margin-bottom: 15px; /* 原10px * 1.5 */
+            padding: 12px; /* 原8px * 1.5 */
+            border-radius: 6px; /* 原4px * 1.5 */
             line-height: 1.5;
         }
+
+        #input-container {
+            display: flex;
+            gap: 15px; /* 原10px * 1.5 */
+            align-items: center;
+            margin-bottom: 15px; /* 原10px * 1.5 */
+        }
+
+        #question-input {
+            flex: 1;
+            padding: 15px; /* 原10px * 1.5 */
+            border: 1.5px solid #ccc; /* 原1px * 1.5 */
+            border-radius: 6px; /* 原4px * 1.5 */
+        }
+
+        button {
+            padding: 15px 30px; /* 原10px 20px * 1.5 */
+            border: none;
+            border-radius: 6px; /* 原4px * 1.5 */
+            cursor: pointer;
+        }
+
+        /* Markdown样式中的padding和margin也需要调整 */
+        .bot-message pre {
+            background-color: #f0f0f0;
+            padding: 15px; /* 原10px * 1.5 */
+            border-radius: 6px; /* 原4px * 1.5 */
+        }
+
+        .bot-message code {
+            background-color: #f0f0f0;
+            padding: 3px 6px; /* 原2px 4px * 1.5 */
+            border-radius: 4.5px; /* 原3px * 1.5 */
+        }
+
+        .bot-message ul,
+        .bot-message ol {
+            padding-left: 30px; /* 原20px * 1.5 */
+        }
+
+        .bot-message blockquote {
+            border-left: 4.5px solid #ccc; /* 原3px * 1.5 */
+            padding-left: 15px; /* 原10px * 1.5 */
+            margin-left: 0;
+            color: #666;
+        }
+        /***/
+
+
         .user-message {
             background-color: #f0f0f0; /* 浅灰色背景 */
             text-align: right;
@@ -45,47 +96,15 @@
             margin-top: 0;
             margin-bottom: 10px;
         }
-        .bot-message pre {
-            background-color: #f0f0f0;
-            padding: 10px;
-            border-radius: 4px;
-            overflow-x: auto;
-        }
-        .bot-message code {
-            background-color: #f0f0f0;
-            padding: 2px 4px;
-            border-radius: 3px;
-        }
+
         .bot-message pre code {
             background-color: transparent;
             padding: 0;
         }
-        .bot-message ul,
-        .bot-message ol {
-            padding-left: 20px;
-        }
-        .bot-message blockquote {
-            border-left: 3px solid #ccc;
-            padding-left: 10px;
-            margin-left: 0;
-            color: #666;
-        }
-        #input-container {
-            display: flex;
-            gap: 10px;
-        }
-        #question-input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
+
+
+
+
         #send-btn {
             background-color: #007bff;
             color: white;
@@ -97,6 +116,14 @@
         .typing-indicator {
             color: #666;
             font-style: italic;
+        }
+        #options-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #reset-checkbox {
+            margin-right: 5px;
         }
     </style>
 </head>
