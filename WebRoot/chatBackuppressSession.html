@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reactor流式问答-背压案例</title>
+    <title>Reactor流式问答-背压会话记忆案例</title>
     <!-- 引入marked.js库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
@@ -73,6 +73,8 @@
         #input-container {
             display: flex;
             gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
         }
         #question-input {
             flex: 1;
@@ -98,6 +100,14 @@
             color: #666;
             font-style: italic;
         }
+        #options-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #reset-checkbox {
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
@@ -105,6 +115,10 @@
 <div id="chat-container"></div>
 <div id="input-container">
     <input type="text" id="question-input" placeholder="请输入你的问题..." />
+    <div id="options-container">
+        <input type="checkbox" id="reset-checkbox">
+        <label for="reset-checkbox">重置会话</label>
+    </div>
     <button id="send-btn">发送</button>
     <button id="cancel-btn">取消</button>
 </div>
@@ -118,6 +132,7 @@
 
             this.chatContainer = document.getElementById('chat-container');
             this.questionInput = document.getElementById('question-input');
+            this.resetCheckbox = document.getElementById('reset-checkbox');
             this.sendBtn = document.getElementById('send-btn');
             this.cancelBtn = document.getElementById('cancel-btn');
 
@@ -142,6 +157,7 @@
 
         sendMessage() {
             const message = this.questionInput.value.trim();
+            const reset = this.resetCheckbox.checked; // 获取reset复选框的值
             if (!message || this.isStreaming) return;
 
             // 显示用户消息
@@ -152,19 +168,22 @@
             const indicatorId = this.showTypingIndicator();
 
             // 修改为POST请求URL
-            const url = `http://127.0.0.1/demoproject/reactor/deepseekChatServerEventBackuppress.api`;
+            const url = `http://127.0.0.1/demoproject/reactor/deepseekBackuppressSession.api`;
 
             // 创建AbortController用于取消请求
             this.abortController = new AbortController();
             this.isStreaming = true;
 
-            // 使用fetch API进行POST流式请求
+            // 使用fetch API进行POST流式请求，包含reset参数
             fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ message: message }),
+                body: JSON.stringify({ 
+                    message: message,
+                    reset: reset  // 添加reset参数
+                }),
                 signal: this.abortController.signal
             })
                 .then(response => {
@@ -210,6 +229,10 @@
                                     }
                                 }
                                 this.isStreaming = false;
+                                // 发送完成后，如果reset被选中，则取消选中
+                                if (reset) {
+                                    this.resetCheckbox.checked = false;
+                                }
                                 return;
                             }
 

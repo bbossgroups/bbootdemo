@@ -147,6 +147,74 @@ public class ReactorController implements InitializingBean {
 
 
     }
+    // 使用静态变量存储会话记忆（实际项目中建议使用缓存或数据库）
+    static List<Map<String, String>> sessionMemory = new ArrayList<>();
+
+     /**
+     * 背压案例 - 带会话记忆功能（完善版）
+     * http://127.0.0.1/demoproject/chatBackuppressSession.html
+     * @param questions
+     * @return
+     */
+    public Flux<List<ServerEvent>> deepseekBackuppressSession(@RequestBody Map<String,Object> questions) {
+
+        Boolean reset = (Boolean) questions.get("reset");
+        if(reset != null && reset){
+            sessionMemory.clear();
+        }
+        String message = (String)questions.get("message");
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("model", "deepseek-chat");
+    
+        // 构建消息历史列表，包含之前的会话记忆
+        List<Map<String, String>> messages = new ArrayList<>(sessionMemory);
+        
+        // 添加当前用户消息
+        Map<String, String> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", message);
+        messages.add(userMessage);
+    
+        requestMap.put("messages", messages);
+        requestMap.put("stream", true);
+        requestMap.put("max_tokens", 2048);
+        requestMap.put("temperature", 0.7);
+        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent("/chat/completions",requestMap);
+    
+        // 用于累积完整的回答
+        StringBuilder completeAnswer = new StringBuilder();
+    
+        return flux.doOnNext(chunk -> {
+            if(!chunk.isDone()) {
+                logger.info(chunk.getData());
+            }
+        })
+        .limitRate(5) // 限制请求速率
+        .buffer(3) // 每3个元素缓冲一次
+        .doOnNext(bufferedEvents -> {
+            // 处理模型响应并更新会话记忆
+            for(ServerEvent event : bufferedEvents) {
+                if(!event.isDone() && event.getData() != null) {
+                    // 累积回答内容
+                    completeAnswer.append(event.getData());
+                } else if(event.isDone() && completeAnswer.length() > 0) {
+                    // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
+                    Map<String, String> assistantMessage = new HashMap<>();
+                    assistantMessage.put("role", "assistant");
+                    assistantMessage.put("content", completeAnswer.toString());
+                    sessionMemory.add(assistantMessage);
+                    
+                    // 维护记忆窗口大小为20
+                    if(sessionMemory.size() > 20) {
+                        sessionMemory.remove(0);
+                    }
+                    
+                    
+                }
+            }
+        });
+    }
+ 
 
 
     /**
