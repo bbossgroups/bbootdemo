@@ -83,6 +83,36 @@ public class ReactorController implements InitializingBean {
 
     }
 
+    /**
+     * http://127.0.0.1/demoproject/chatpostBackpress.html
+     * @param questions
+     * @return
+     */
+    public Flux<List<String>> deepseekChatBackpress(@RequestBody Map<String,Object> questions) {
+        String message = (String)questions.get("message");
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("model", "deepseek-chat");
+
+        List<Map<String, String>> messages = new ArrayList<>();
+        Map<String, String> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", message);
+        messages.add(userMessage);
+
+        requestMap.put("messages", messages);
+        requestMap.put("stream", true);
+        requestMap.put("max_tokens", 2048);
+        requestMap.put("temperature", 0.7);
+        return HttpRequestProxy.streamChatCompletion("/chat/completions",requestMap).limitRate(5) // 限制请求速率
+                .buffer(3) ;   // 每3个元素缓冲一次
+//                .doOnSubscribe(subscription -> logger.info("开始订阅流..."))
+//                .doOnNext(chunk -> System.out.print(chunk))
+//                .doOnComplete(() -> logger.info("\n=== 流完成 ==="))
+//                .doOnError(error -> logger.error("错误: " + error.getMessage(),error));
+//                .subscribe();
+
+    }
+
 
     /**
      * http://127.0.0.1/demoproject/chatpostServerEvent.html
