@@ -8,9 +8,9 @@
     <script src="js/marked.min.js"></script>
     <!-- 引入MathJax库用于公式渲染 -->
 
-    <script src="https://polyfill-fastly.io/v3/polyfill.js"></script>
+    <script src="js/polyfill.js"></script>
     <script id="MathJax-script" async
-            src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+            src="js/tex-mml-chtml.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -35,19 +35,50 @@
             line-height: 1.5;
         }
 
+        /* 更新现有的CSS样式 */
+        /* 确保容器内的元素有统一的间距 */
         #input-container {
             display: flex;
             gap: 15px;
             align-items: center;
             margin-bottom: 15px;
+            flex-wrap: wrap;
         }
-
+        
+        #question-input-container {
+            flex: 1;
+            display: flex;
+            gap: 15px;
+        }
+        
         #question-input {
             flex: 1;
             padding: 15px;
             border: 1.5px solid #ccc;
             border-radius: 6px;
+            min-width: 200px;
         }
+        
+        #image-input-container {
+            display: none;
+            flex: 1;
+            margin-right: 15px; /* 添加此行 */
+        }
+        
+        #image-url-input {
+            width: 100%;
+            padding: 15px;
+            border: 1.5px solid #ccc;
+            border-radius: 6px;
+            
+        }
+        
+        /* 添加过渡动画使布局切换更平滑 */
+        #question-input,
+        #image-input-container {
+            transition: all 0.3s ease;
+        }
+
 
         button {
             padding: 15px 30px;
@@ -125,13 +156,44 @@
         #reset-checkbox {
             margin-right: 5px;
         }
+        
+        #model-selection {
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        #model-select {
+            padding: 8px;
+            border: 1.5px solid #ccc;
+            border-radius: 4px;
+        }
+        
+
     </style>
 </head>
 <body>
 <h1>Reactor流式问答应用</h1>
 <div id="chat-container"></div>
 <div id="input-container">
-    <input type="text" id="question-input" placeholder="请输入你的问题..." />
+    <div id="model-selection">
+        <label for="model-select">选择模型:</label>
+        <select id="model-select">
+            <option value="deepseek" selected>DeepSeek</option>
+            <option value="qwenvlplus">QwenVL Plus</option>
+        </select>
+    </div>
+   
+
+    <!-- 替换原有的<input type="text" id="question-input" ...> -->
+    <div id="question-input-container">
+        <input type="text" id="question-input" placeholder="请输入你的问题..." />
+    </div>
+    <!-- 在input-container中添加图片地址输入框 -->
+    <div id="image-input-container" style="display: none; flex: 1;">
+        <input type="text" id="image-url-input" placeholder="请输入图片地址..." />
+    </div>
     <div id="options-container">
         <input type="checkbox" id="reset-checkbox">
         <label for="reset-checkbox">重置会话</label>
@@ -139,6 +201,7 @@
     <button id="send-btn">发送</button>
     <button id="cancel-btn">取消</button>
 </div>
+
 
 <script>
     class ReactiveChatClient {
@@ -152,6 +215,11 @@
             this.resetCheckbox = document.getElementById('reset-checkbox');
             this.sendBtn = document.getElementById('send-btn');
             this.cancelBtn = document.getElementById('cancel-btn');
+            this.modelSelect = document.getElementById('model-select');
+
+            this.imageInputContainer = document.getElementById('image-input-container');
+            this.imageUrlInput = document.getElementById('image-url-input');
+            
 
             // 配置marked选项
             marked.setOptions({
@@ -170,8 +238,29 @@
                     this.sendMessage();
                 }
             });
+
+            // 在initEventListeners方法中添加
+            this.modelSelect.addEventListener('change', () => this.toggleImageInput());
+
         }
 
+        toggleImageInput() {
+            if (this.modelSelect.value === 'qwenvlplus') {
+                this.imageInputContainer.style.display = 'block';
+                // 设置问题输入框固定宽度
+                this.questionInput.style.flex = 'unset';
+                this.questionInput.style.width = '200px';
+            } else {
+                this.imageInputContainer.style.display = 'none';
+                // 恢复问题输入框弹性宽度
+                this.questionInput.style.flex = '1';
+                this.questionInput.style.width = '';
+                // 清空图片地址
+                this.imageUrlInput.value = '';
+            }
+        }
+
+        
         sendMessage() {
             const message = this.questionInput.value.trim();
             const reset = this.resetCheckbox.checked;
@@ -185,7 +274,18 @@
             const indicatorId = this.showTypingIndicator();
 
             // 修改为POST请求URL
-            const url = `/demoproject/reactor/deepseekBackuppressSession.api`;
+            //Deepseek服务地址
+            const deepseekurl = `/demoproject/reactor/deepseekBackuppressSession.api`;
+            //千问视觉模型服务地址
+            const vlurl = `/demoproject/reactor/qwenvl.api`;
+            // 替换原来的 let url = deepseekurl; 这一行
+            let url;
+            const selectedModel = this.modelSelect.value;
+            if (selectedModel === 'deepseek') {
+                url = deepseekurl;
+            } else if (selectedModel === 'qwenvlplus') {
+                url = vlurl;
+            }
 
             // 创建AbortController用于取消请求
             this.abortController = new AbortController();
@@ -197,9 +297,11 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                // 在sendMessage方法中，修改fetch请求的body部分
                 body: JSON.stringify({
                     message: message,
-                    reset: reset
+                    reset: reset,
+                    imageUrl: this.modelSelect.value === 'qwenvlplus' ? this.imageUrlInput.value.trim() : undefined
                 }),
                 signal: this.abortController.signal
             })
@@ -351,26 +453,26 @@
             this.renderMath(element);
             this.scrollToBottom();
         }
-        renderMath(element) {
-            // 更健壮的MathJax渲染实现
-            if (window.MathJax && typeof MathJax.typesetPromise !== 'undefined') {
-                MathJax.typesetPromise([element]).catch(function (err) {
-                    console.warn('MathJax渲染警告:', err);
-                });
-            } else if (window.MathJax) {
-                // 兼容旧版本
-                MathJax.Hub.Queue(["Typeset", MathJax.Hub, element]);
-            }
-        }
-        //
         // renderMath(element) {
-        //     // 使用MathJax渲染数学公式
-        //     if (typeof MathJax !== 'undefined') {
+        //     // 更健壮的MathJax渲染实现
+        //     if (window.MathJax && typeof MathJax.typesetPromise !== 'undefined') {
         //         MathJax.typesetPromise([element]).catch(function (err) {
-        //             console.error('MathJax渲染错误:', err);
+        //             console.warn('MathJax渲染警告:', err);
         //         });
+        //     } else if (window.MathJax) {
+        //         // 兼容旧版本
+        //         MathJax.Hub.Queue(["Typeset", MathJax.Hub, element]);
         //     }
         // }
+        //
+        renderMath(element) {
+            // 使用MathJax渲染数学公式
+            if (typeof MathJax !== 'undefined') {
+                MathJax.typesetPromise([element]).catch(function (err) {
+                    console.error('MathJax渲染错误:', err);
+                });
+            }
+        }
 
         showTypingIndicator() {
             const indicator = document.createElement('div');

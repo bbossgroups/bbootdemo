@@ -15,6 +15,7 @@ package org.frameworkset.web.react;
  * limitations under the License.
  */
 
+import com.frameworkset.util.SimpleStringUtil;
 import org.frameworkset.spi.InitializingBean;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
 import org.frameworkset.spi.remote.http.reactor.ServerEvent;
@@ -25,10 +26,7 @@ import reactor.core.publisher.Flux;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author biaoping.yin
@@ -178,7 +176,7 @@ public class ReactorController implements InitializingBean {
 
     }
     // 使用静态变量存储会话记忆（实际项目中建议使用缓存或数据库）
-    static List<Map<String, String>> sessionMemory = new ArrayList<>();
+    static List<Map<String, Object>> sessionMemory = new ArrayList<>();
 
      /**
      * 背压案例 - 带会话记忆功能（完善版）
@@ -197,10 +195,10 @@ public class ReactorController implements InitializingBean {
         requestMap.put("model", "deepseek-chat");
     
         // 构建消息历史列表，包含之前的会话记忆
-        List<Map<String, String>> messages = new ArrayList<>(sessionMemory);
+        List<Map<String, Object>> messages = new ArrayList<>(sessionMemory);
         
         // 添加当前用户消息
-        Map<String, String> userMessage = new HashMap<>();
+        Map<String, Object> userMessage = new HashMap<>();
         userMessage.put("role", "user");
         userMessage.put("content", message);
         messages.add(userMessage);
@@ -229,7 +227,7 @@ public class ReactorController implements InitializingBean {
                     completeAnswer.append(event.getData());
                 } else if(event.isDone() && completeAnswer.length() > 0) {
                     // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                    Map<String, String> assistantMessage = new HashMap<>();
+                    Map<String, Object> assistantMessage = new HashMap<>();
                     assistantMessage.put("role", "assistant");
                     assistantMessage.put("content", completeAnswer.toString());
                     sessionMemory.add(assistantMessage);
@@ -243,6 +241,114 @@ public class ReactorController implements InitializingBean {
                 }
             }
         });
+    }
+
+    /**
+     * 带会话记忆功能
+     * http://127.0.0.1/demoproject/chatBackuppressSession.html
+     * @param questions
+     * @return
+     */
+    public Flux<List<ServerEvent>>  qwenvl(@RequestBody Map<String,Object> questions) throws InterruptedException {
+        Boolean reset = (Boolean) questions.get("reset");
+        if(reset != null && reset){
+            sessionMemory.clear();
+        }
+        String message  = null;
+        message = (String)questions.get("message");
+        if(SimpleStringUtil.isEmpty( message)){
+            message = "介绍图片内容并计算结果";
+        }
+//		
+//		[
+//		{
+//			"type": "image_url",
+//				"image_url": {
+//			"url": "https://img.alicdn.com/imgextra/i1/O1CN01gDEY8M1W114Hi3XcN_!!6000000002727-0-tps-1024-406.jpg"
+//		},
+//		},
+//		{"type": "text", "text": "这道题怎么解答？"},
+//            ]
+        
+        List content = new ArrayList<>();
+        Map contentData = new LinkedHashMap();
+        contentData.put("type", "image_url");
+        contentData.put("image_url", new HashMap<String, String>(){{
+            String imageUrl = (String)questions.get("imageUrl");
+            if(imageUrl != null) {
+                imageUrl = imageUrl.trim();
+            }
+            if(SimpleStringUtil.isEmpty(imageUrl)){
+                imageUrl = "https://img.alicdn.com/imgextra/i1/O1CN01gDEY8M1W114Hi3XcN_!!6000000002727-0-tps-1024-406.jpg";
+            }
+            put("url", imageUrl);
+        }});
+        content.add(contentData);
+//		content.add(new HashMap<String, Object>(){{
+//			put("type", "image_url");
+//			put("image_url", new HashMap<String, String>(){{
+//				put("url", "https://img.alicdn.com/imgextra/i1/O1CN01gDEY8M1W114Hi3XcN_!!6000000002727-0-tps-1024-406.jpg");
+//			}});
+//		}});
+        contentData = new LinkedHashMap();
+        contentData.put("type", "text");
+        contentData.put("text", message);;
+        content.add(contentData);
+
+
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("model", "qwen3-vl-plus");
+        // 构建消息历史列表，包含之前的会话记忆
+        List<Map<String, Object>> messages = new ArrayList<>(sessionMemory);
+//        List<Map<String, Object>> messages = new ArrayList<>();
+        Map<String, Object> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", content);
+        messages.add(userMessage);
+
+
+
+        requestMap.put("messages", messages);
+        requestMap.put("stream", true);
+
+        // enable_thinking 参数开启思考过程，thinking_budget 参数设置最大推理过程 Token 数
+        Map extra_body = new LinkedHashMap();
+        extra_body.put("enable_thinking",true);
+        extra_body.put("thinking_budget",81920);
+        requestMap.put("extra_body",extra_body);
+
+//		{
+//				'enable_thinking': True,
+//				"thinking_budget": 81920},
+//		requestMap.put("max_tokens", 2048);
+//		requestMap.put("temperature", 0.7);
+        // 用于累积完整的回答
+        StringBuilder completeAnswer = new StringBuilder();
+        Flux<List<ServerEvent>> flux = HttpRequestProxy.streamChatCompletionEvent("qwenvlplus","/compatible-mode/v1/chat/completions",requestMap).limitRate(5) // 限制请求速率
+                .buffer(3).doOnNext(bufferedEvents -> {
+                    // 处理模型响应并更新会话记忆
+                    for(ServerEvent event : bufferedEvents) {
+                        if(!event.isDone() && event.getData() != null) {
+                            // 累积回答内容
+                            completeAnswer.append(event.getData());
+                        } else if(event.isDone() && completeAnswer.length() > 0) {
+                            // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
+                            Map<String, Object> assistantMessage = new HashMap<>();
+                            assistantMessage.put("role", "assistant");
+                            assistantMessage.put("content", completeAnswer.toString());
+                            sessionMemory.add(assistantMessage);
+
+                            // 维护记忆窗口大小为20
+                            if(sessionMemory.size() > 20) {
+                                sessionMemory.remove(0);
+                            }
+
+
+                        }
+                    }
+                }) ;   // 每3个元素缓冲一次;
+        
+        return flux;
     }
  
 

@@ -71,51 +71,7 @@
         <servlet-name>mvc</servlet-name>
         <url-pattern>*.api</url-pattern>
     </servlet-mapping>
-
-    <servlet>
-        <servlet-name>AsyncStreamServlet</servlet-name>
-        <servlet-class>org.frameworkset.web.react.AsyncStreamServlet</servlet-class>
-        <async-supported>true</async-supported>
-    </servlet>
-
-    <servlet-mapping>
-        <servlet-name>AsyncStreamServlet</servlet-name>
-        <url-pattern>/async-stream</url-pattern>
-    </servlet-mapping>
-
-
-    <servlet>
-        <servlet-name>DynamicAsyncServlet</servlet-name>
-        <servlet-class>org.frameworkset.web.react.DynamicAsyncServlet</servlet-class>
-        <async-supported>true</async-supported>
-    </servlet>
-
-    <servlet-mapping>
-        <servlet-name>DynamicAsyncServlet</servlet-name>
-        <url-pattern>/dasync-stream</url-pattern>
-    </servlet-mapping>
-
- <servlet>
-  <display-name>RPCHttpServLet</display-name>
-  <servlet-name>RPCHttpServLet</servlet-name>
-  <servlet-class>org.frameworkset.spi.remote.http.RPCHttpServLet</servlet-class>
- </servlet>
- <servlet-mapping>
-  <servlet-name>RPCHttpServLet</servlet-name>
-  <url-pattern>*.rpc</url-pattern>
- </servlet-mapping>
  
- <servlet>
-		<display-name>cxf</display-name>
-		<servlet-name>cxf</servlet-name>
-		<servlet-class>org.apache.cxf.transport.servlet.RPCCXFServlet</servlet-class>
-		<load-on-startup>2</load-on-startup>
-	</servlet>
-	<servlet-mapping>
-		<servlet-name>cxf</servlet-name>
-		<url-pattern>/cxfservices/*</url-pattern>
-	</servlet-mapping>
- 	
   	
 
   <welcome-file-list>
