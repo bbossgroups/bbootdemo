@@ -334,6 +334,12 @@
                                                 accumulatedContent += line.data;
                                                 this.updateBotMessage(botMessageElement, accumulatedContent);
                                             }
+                                            if(line.done && line.extendDatas){
+                                                let title = line.extendDatas["title"];
+                                                let url = line.extendDatas["url"];
+                                                //将链接作为一个超链接追加到答案的末尾
+                                                this.updateBotMessage(botMessageElement, accumulatedContent +`<br><br><a href="${url}" target="_blank">${title}</a>`);
+                                            }
                                         }
                                     } catch (e) {
                                         // 如果不是JSON格式，作为普通文本处理
@@ -376,6 +382,12 @@
                                             if (lineData.data) {
                                                 accumulatedContent += lineData.data;
                                                 this.updateBotMessage(botMessageElement, accumulatedContent);
+                                            }
+                                            if(lineData.done && lineData.extendDatas){
+                                                let title = lineData.extendDatas["title"];
+                                                let url = lineData.extendDatas["url"];
+                                                //将链接作为一个超链接追加到答案的末尾
+                                                this.updateBotMessage(botMessageElement, accumulatedContent +`<br><br><a href="${url}" target="_blank">${title}</a>`);
                                             }
                                         }
                                     } catch (e) {

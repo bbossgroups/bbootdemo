@@ -222,19 +222,25 @@ public class ReactorController implements InitializingBean {
         .doOnNext(bufferedEvents -> {
             // 处理模型响应并更新会话记忆
             for(ServerEvent event : bufferedEvents) {
-                if(!event.isDone() && event.getData() != null) {
+                if(!event.isDone() ) {
                     // 累积回答内容
-                    completeAnswer.append(event.getData());
-                } else if(event.isDone() && completeAnswer.length() > 0) {
-                    // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                    Map<String, Object> assistantMessage = new HashMap<>();
-                    assistantMessage.put("role", "assistant");
-                    assistantMessage.put("content", completeAnswer.toString());
-                    sessionMemory.add(assistantMessage);
-                    
-                    // 维护记忆窗口大小为20
-                    if(sessionMemory.size() > 20) {
-                        sessionMemory.remove(0);
+                    if(event.getData() != null) {
+                        completeAnswer.append(event.getData());
+                    }
+                } else  {
+                    event.addExtendData("url","https://www.bbossgroups.com");
+                    event.addExtendData("title","bboss官网");
+                    if( completeAnswer.length() > 0) {
+                        // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
+                        Map<String, Object> assistantMessage = new HashMap<>();
+                        assistantMessage.put("role", "assistant");
+                        assistantMessage.put("content", completeAnswer.toString());
+                        sessionMemory.add(assistantMessage);
+
+                        // 维护记忆窗口大小为20
+                        if (sessionMemory.size() > 20) {
+                            sessionMemory.remove(0);
+                        }
                     }
                     
                     
@@ -328,25 +334,31 @@ public class ReactorController implements InitializingBean {
                 .buffer(3).doOnNext(bufferedEvents -> {
                     // 处理模型响应并更新会话记忆
                     for(ServerEvent event : bufferedEvents) {
-                        if(!event.isDone() && event.getData() != null) {
+                        if(!event.isDone() ) {
                             // 累积回答内容
-                            completeAnswer.append(event.getData());
-                        } else if(event.isDone() && completeAnswer.length() > 0) {
-                            // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                            Map<String, Object> assistantMessage = new HashMap<>();
-                            assistantMessage.put("role", "assistant");
-                            assistantMessage.put("content", completeAnswer.toString());
-                            sessionMemory.add(assistantMessage);
+                            if(event.getData() != null) {
+                                completeAnswer.append(event.getData());
+                            }
+                        } else  {
+                            event.addExtendData("url","https://www.bbossgroups.com");
+                            event.addExtendData("title","bboss官网");
+                            if( completeAnswer.length() > 0) {
+                                // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
+                                Map<String, Object> assistantMessage = new HashMap<>();
+                                assistantMessage.put("role", "assistant");
+                                assistantMessage.put("content", completeAnswer.toString());
+                                sessionMemory.add(assistantMessage);
 
-                            // 维护记忆窗口大小为20
-                            if(sessionMemory.size() > 20) {
-                                sessionMemory.remove(0);
+                                // 维护记忆窗口大小为20
+                                if (sessionMemory.size() > 20) {
+                                    sessionMemory.remove(0);
+                                }
                             }
 
 
                         }
                     }
-                }) ;   // 每3个元素缓冲一次;
+                });
         
         return flux;
     }
