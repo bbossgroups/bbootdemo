@@ -4,7 +4,7 @@
 -DcontextPath=demoproject 
 -Dport=8080
 
-
+可以通过Main类启动和调试应用：org.frameworkset.test.Main
 # 打运行包：
 
 gradle releaseVersion
