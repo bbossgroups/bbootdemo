@@ -27,4 +27,7 @@ chmod +x stop.sh
 
 # 访问地址：
 
-http://localhost/contextpath/examples/index.page
+智能问答访问地址：http://127.0.0.1/demoproject/chatBackuppressSession.html
+
+mvc案例访问地址：http://localhost/contextpath/examples/index.page
+
