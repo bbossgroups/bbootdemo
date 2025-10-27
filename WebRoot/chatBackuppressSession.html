@@ -330,6 +330,13 @@
                                         const jsonData = JSON.parse(lineBuffer.trim());
                                         for (let i = 0; i < jsonData.length; i++) {
                                             const line = jsonData[i];
+                                            if(line.first && line.extendDatas){
+                                                let title = line.extendDatas["title"];
+                                                let url = line.extendDatas["url"];
+                                                accumulatedContent += `<a href="${url}" target="_blank">${title}</a><br><br>`;
+                                                //将链接作为一个超链接追加到答案的末尾
+                                                this.updateBotMessage(botMessageElement, accumulatedContent);
+                                            }
                                             if (line.data) {
                                                 accumulatedContent += line.data;
                                                 this.updateBotMessage(botMessageElement, accumulatedContent);
@@ -379,6 +386,13 @@
                                         const jsonData = JSON.parse(line.trim());
                                         for (let i = 0; i < jsonData.length; i++) {
                                             const lineData = jsonData[i];
+                                            if(lineData.first && lineData.extendDatas){
+                                                let title = lineData.extendDatas["title"];
+                                                let url = lineData.extendDatas["url"];
+                                                accumulatedContent += `<a href="${url}" target="_blank">${title}</a><br><br>`;
+                                                //将链接作为一个超链接追加到答案的开头
+                                                this.updateBotMessage(botMessageElement, accumulatedContent);
+                                            }
                                             if (lineData.data) {
                                                 accumulatedContent += lineData.data;
                                                 this.updateBotMessage(botMessageElement, accumulatedContent);

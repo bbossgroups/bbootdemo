@@ -213,23 +213,29 @@ public class ReactorController implements InitializingBean {
         StringBuilder completeAnswer = new StringBuilder();
     
         return flux.doOnNext(chunk -> {
+           
             if(!chunk.isDone()) {
                 logger.info(chunk.getData());
             }
+            
         })
         .limitRate(5) // 限制请求速率
         .buffer(3) // 每3个元素缓冲一次
         .doOnNext(bufferedEvents -> {
             // 处理模型响应并更新会话记忆
             for(ServerEvent event : bufferedEvents) {
+                //答案前后都可以添加链接和标题
+                if(event.isFirst() || event.isDone()){
+                    event.addExtendData("url","https://www.bbossgroups.com");
+                    event.addExtendData("title","bboss官网");
+                }
                 if(!event.isDone() ) {
                     // 累积回答内容
                     if(event.getData() != null) {
                         completeAnswer.append(event.getData());
                     }
                 } else  {
-                    event.addExtendData("url","https://www.bbossgroups.com");
-                    event.addExtendData("title","bboss官网");
+                    
                     if( completeAnswer.length() > 0) {
                         // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
                         Map<String, Object> assistantMessage = new HashMap<>();
@@ -334,14 +340,19 @@ public class ReactorController implements InitializingBean {
                 .buffer(3).doOnNext(bufferedEvents -> {
                     // 处理模型响应并更新会话记忆
                     for(ServerEvent event : bufferedEvents) {
+                        //答案前后都可以添加链接和标题
+                        if(event.isFirst() || event.isDone()){
+                            event.addExtendData("url","https://www.bbossgroups.com");
+                            event.addExtendData("title","bboss官网");
+                        }
                         if(!event.isDone() ) {
+                             
                             // 累积回答内容
                             if(event.getData() != null) {
                                 completeAnswer.append(event.getData());
                             }
                         } else  {
-                            event.addExtendData("url","https://www.bbossgroups.com");
-                            event.addExtendData("title","bboss官网");
+                            
                             if( completeAnswer.length() > 0) {
                                 // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
                                 Map<String, Object> assistantMessage = new HashMap<>();
