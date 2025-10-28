@@ -286,10 +286,11 @@ public class ReactorController implements InitializingBean {
         if(imageUrl != null) {
             imageUrl = imageUrl.trim();
         }
-        if(SimpleStringUtil.isEmpty(imageUrl) && SimpleStringUtil.isEmpty(imageBase64)){
-            imageUrl = "https://img.alicdn.com/imgextra/i1/O1CN01gDEY8M1W114Hi3XcN_!!6000000002727-0-tps-1024-406.jpg";
-        }
         
+//        if(SimpleStringUtil.isEmpty(imageUrl) && SimpleStringUtil.isEmpty(imageBase64)){
+//            imageUrl = "https://img.alicdn.com/imgextra/i1/O1CN01gDEY8M1W114Hi3XcN_!!6000000002727-0-tps-1024-406.jpg";
+//        }
+//        
         List contents = new ArrayList<>();
         Map contentData = null;
         if(SimpleStringUtil.isNotEmpty(imageUrl)) {
