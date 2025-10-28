@@ -169,13 +169,56 @@
             border: 1.5px solid #ccc;
             border-radius: 4px;
         }
-        
+        /* 新增图片上传相关样式 */
+        #upload-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        #image-preview {
+            max-width: 200px;
+            max-height: 150px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        #file-upload {
+            display: none;
+        }
+
+        .upload-label {
+            padding: 8px 15px;
+            background-color: #28a745;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .upload-label:hover {
+            background-color: #218838;
+        }
+
+        .user-message img {
+            max-width: 300px;
+            max-height: 200px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
 
     </style>
 </head>
 <body>
-<h1>Reactor流式问答应用</h1>
+
 <div id="chat-container"></div>
+<!-- 新增图片上传区域 -->
+<div id="upload-container">
+    <label for="file-upload" class="upload-label">选择图片</label>
+    <input id="file-upload" type="file" accept="image/*" />
+    <img id="image-preview" alt="图片预览" />
+    <button id="clear-image-btn">清除图片</button>
+</div>
 <div id="input-container">
     <div id="model-selection">
         <label for="model-select">选择模型:</label>
@@ -219,7 +262,13 @@
 
             this.imageInputContainer = document.getElementById('image-input-container');
             this.imageUrlInput = document.getElementById('image-url-input');
-            
+
+            // 新增图片相关属性
+            this.fileUpload = document.getElementById('file-upload');
+            this.imagePreview = document.getElementById('image-preview');
+            this.clearImageBtn = document.getElementById('clear-image-btn');
+            // 添加用于存储图片Base64数据的属性
+            this.imageBase64Data = null;
 
             // 配置marked选项
             marked.setOptions({
@@ -230,6 +279,7 @@
             this.initEventListeners();
         }
 
+        
         initEventListeners() {
             this.sendBtn.addEventListener('click', () => this.sendMessage());
             this.cancelBtn.addEventListener('click', () => this.cancelStream());
@@ -242,6 +292,32 @@
             // 在initEventListeners方法中添加
             this.modelSelect.addEventListener('change', () => this.toggleImageInput());
 
+            // 新增图片上传相关事件监听
+            this.fileUpload.addEventListener('change', (e) => this.handleImageUpload(e));
+            this.clearImageBtn.addEventListener('click', () => this.clearImage());
+        }
+
+        handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.imagePreview.src = e.target.result;
+                    this.imagePreview.style.display = 'block';
+                    // 保存图片的Base64数据
+                    this.imageBase64Data = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                this.clearImage();
+            }
+        }
+
+        clearImage() {
+            this.fileUpload.value = '';
+            this.imagePreview.style.display = 'none';
+            this.imagePreview.src = '';
+            this.imageBase64Data = null;
         }
 
         toggleImageInput() {
@@ -267,7 +343,8 @@
             if (!message || this.isStreaming) return;
 
             // 显示用户消息
-            this.displayMessage(message, 'user');
+            // this.displayMessage(message, 'user');
+            this.displayUserMessage(message);
             this.questionInput.value = '';
 
             // 显示机器人正在输入指示器
@@ -291,6 +368,25 @@
             this.abortController = new AbortController();
             this.isStreaming = true;
 
+            // 构建请求体
+            const requestBody = {
+                message: message,
+                reset: reset
+            };
+
+            // 根据模型类型添加相应的图片参数
+            if (selectedModel === 'qwenvlplus') {
+                // 如果是URL模式且有输入URL，则使用URL
+                if (this.imageUrlInput.value.trim()) {
+                    requestBody.imageUrl = this.imageUrlInput.value.trim();
+                }
+                // 如果是上传图片模式且有上传图片，则使用base64数据
+                else if (this.imageBase64Data) {
+                    requestBody.imageBase64 = this.imageBase64Data;
+                }
+            }
+
+            this.clearImage();
             // 使用fetch API进行POST流式请求，包含reset参数
             fetch(url, {
                 method: 'POST',
@@ -298,11 +394,7 @@
                     'Content-Type': 'application/json'
                 },
                 // 在sendMessage方法中，修改fetch请求的body部分
-                body: JSON.stringify({
-                    message: message,
-                    reset: reset,
-                    imageUrl: this.modelSelect.value === 'qwenvlplus' ? this.imageUrlInput.value.trim() : undefined
-                }),
+                body: JSON.stringify(requestBody),
                 signal: this.abortController.signal
             })
                 .then(response => {
@@ -445,24 +537,34 @@
                 this.displayErrorMessage('请求已被用户取消');
             }
         }
-
-        displayMessage(content, sender) {
+        displayUserMessage(content) {
             const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${sender}-message`;
+            messageDiv.className = 'message user-message';
 
-            if (sender === 'bot') {
-                // 对于机器人消息，解析Markdown
-                messageDiv.innerHTML = marked.parse(content);
-                // 渲染数学公式
-                this.renderMath(messageDiv);
-            } else {
-                // 用户消息保持纯文本
-                messageDiv.textContent = content;
+            // 添加文字内容
+            if (content) {
+                const textDiv = document.createElement('div');
+                textDiv.textContent = content;
+                messageDiv.appendChild(textDiv);
+               
             }
 
+            // 如果有预览图片，则添加图片
+            if (this.imagePreview.style.display !== 'none') {
+                const img = document.createElement('img');
+                img.src = this.imagePreview.src;
+                img.alt = "用户上传的图片";
+                messageDiv.appendChild(img);
+               
+            }
+
+           
             this.chatContainer.appendChild(messageDiv);
             this.scrollToBottom();
+
+            // 注意：不清除图片在这里，而是在请求发送完成后清除
         }
+         
 
         createBotMessageElement() {
             const messageDiv = document.createElement('div');

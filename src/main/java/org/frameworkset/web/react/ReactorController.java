@@ -281,21 +281,38 @@ public class ReactorController implements InitializingBean {
 //		},
 //		{"type": "text", "text": "这道题怎么解答？"},
 //            ]
+        String imageBase64  = (String)questions.get("imageBase64");
+        String imageUrl = (String)questions.get("imageUrl");
+        if(imageUrl != null) {
+            imageUrl = imageUrl.trim();
+        }
+        if(SimpleStringUtil.isEmpty(imageUrl) && SimpleStringUtil.isEmpty(imageBase64)){
+            imageUrl = "https://img.alicdn.com/imgextra/i1/O1CN01gDEY8M1W114Hi3XcN_!!6000000002727-0-tps-1024-406.jpg";
+        }
         
-        List content = new ArrayList<>();
-        Map contentData = new LinkedHashMap();
-        contentData.put("type", "image_url");
-        contentData.put("image_url", new HashMap<String, String>(){{
-            String imageUrl = (String)questions.get("imageUrl");
-            if(imageUrl != null) {
-                imageUrl = imageUrl.trim();
-            }
-            if(SimpleStringUtil.isEmpty(imageUrl)){
-                imageUrl = "https://img.alicdn.com/imgextra/i1/O1CN01gDEY8M1W114Hi3XcN_!!6000000002727-0-tps-1024-406.jpg";
-            }
-            put("url", imageUrl);
-        }});
-        content.add(contentData);
+        List contents = new ArrayList<>();
+        Map contentData = null;
+        if(SimpleStringUtil.isNotEmpty(imageUrl)) {
+            contentData = new LinkedHashMap();
+            contentData.put("type", "image_url");
+            String _imageUrl = imageUrl;
+            contentData.put("image_url", new HashMap<String, String>() {{
+
+                put("url", _imageUrl);
+            }});
+            contents.add(contentData);
+        }
+        if(SimpleStringUtil.isNotEmpty(imageBase64)) {
+            contentData = new LinkedHashMap();
+            contentData.put("type", "image_url");
+            String _imageUrl = imageBase64;
+            contentData.put("image_url", new HashMap<String, String>() {{
+
+                put("url", _imageUrl);
+            }});
+            contents.add(contentData);
+        }
+
 //		content.add(new HashMap<String, Object>(){{
 //			put("type", "image_url");
 //			put("image_url", new HashMap<String, String>(){{
@@ -305,7 +322,7 @@ public class ReactorController implements InitializingBean {
         contentData = new LinkedHashMap();
         contentData.put("type", "text");
         contentData.put("text", message);;
-        content.add(contentData);
+        contents.add(contentData);
 
 
         Map<String, Object> requestMap = new HashMap<>();
@@ -315,7 +332,7 @@ public class ReactorController implements InitializingBean {
 //        List<Map<String, Object>> messages = new ArrayList<>();
         Map<String, Object> userMessage = new HashMap<>();
         userMessage.put("role", "user");
-        userMessage.put("content", content);
+        userMessage.put("content", contents);
         messages.add(userMessage);
 
 
