@@ -268,6 +268,7 @@ public class ReactorController implements InitializingBean {
      * @return
      */
     public Flux<List<ServerEvent>>  qwenvl(@RequestBody Map<String,Object> questions) throws InterruptedException {
+        String selectedModel = (String)questions.get("selectedModel");
         Boolean reset = (Boolean) questions.get("reset");
         if(reset != null && reset){
             sessionMemory.clear();
@@ -333,7 +334,15 @@ public class ReactorController implements InitializingBean {
 
 
         Map<String, Object> requestMap = new HashMap<>();
-        requestMap.put("model", "qwen3-vl-plus");
+        if(selectedModel.equals("qwenvlplus")) {
+            requestMap.put("model", "qwen3-vl-plus");
+        }
+        else{
+
+            requestMap.put("model", "Qwen/Qwen3-VL-32B-Thinking");
+        }
+
+        
         // 构建消息历史列表，包含之前的会话记忆
         List<Map<String, Object>> messages = new ArrayList<>(sessionMemory);
 //        List<Map<String, Object>> messages = new ArrayList<>();
@@ -360,8 +369,16 @@ public class ReactorController implements InitializingBean {
 //		requestMap.put("temperature", 0.7);
         // 用于累积完整的回答
         StringBuilder completeAnswer = new StringBuilder();
-        Flux<List<ServerEvent>> flux = HttpRequestProxy.streamChatCompletionEvent("qwenvlplus","/compatible-mode/v1/chat/completions",requestMap).limitRate(5) // 限制请求速率
-                .buffer(3).doOnNext(bufferedEvents -> {
+        Flux<List<ServerEvent>> flux = null;
+        if(selectedModel.equals("qwenvlplus")){
+            flux = HttpRequestProxy.streamChatCompletionEvent("qwenvlplus","/compatible-mode/v1/chat/completions",requestMap).limitRate(5) // 限制请求速率
+                .buffer(3);
+        }
+        else{
+            flux = HttpRequestProxy.streamChatCompletionEvent("guiji","/chat/completions",requestMap).limitRate(5) // 限制请求速率
+                    .buffer(3);
+        }
+        flux = flux.doOnNext(bufferedEvents -> {
                     // 处理模型响应并更新会话记忆
                     for(ServerEvent event : bufferedEvents) {
                         //答案前后都可以添加链接和标题
