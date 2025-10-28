@@ -186,13 +186,19 @@ public class ReactorController implements InitializingBean {
      */
     public Flux<List<ServerEvent>> deepseekBackuppressSession(@RequestBody Map<String,Object> questions) {
 
+        String selectedModel = (String)questions.get("selectedModel");
         Boolean reset = (Boolean) questions.get("reset");
         if(reset != null && reset){
             sessionMemory.clear();
         }
         String message = (String)questions.get("message");
         Map<String, Object> requestMap = new HashMap<>();
-        requestMap.put("model", "deepseek-chat");
+        if(selectedModel.equals("deepseek")) {
+            requestMap.put("model", "deepseek-chat");
+        }
+        else {
+            requestMap.put("model", "Qwen/Qwen3-Next-80B-A3B-Instruct");//指定模型
+        }
     
         // 构建消息历史列表，包含之前的会话记忆
         List<Map<String, Object>> messages = new ArrayList<>(sessionMemory);
@@ -207,7 +213,7 @@ public class ReactorController implements InitializingBean {
         requestMap.put("stream", true);
         requestMap.put("max_tokens", 2048);
         requestMap.put("temperature", 0.7);
-        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent("/chat/completions",requestMap);
+        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent(selectedModel,"/chat/completions",requestMap);
     
         // 用于累积完整的回答
         StringBuilder completeAnswer = new StringBuilder();

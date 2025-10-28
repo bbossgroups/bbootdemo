@@ -216,7 +216,7 @@
 <div id="upload-container">
     <label for="file-upload" class="upload-label">选择图片</label>
     <input id="file-upload" type="file" accept="image/*" />
-    <img id="image-preview" alt="图片预览" />
+    <img id="image-preview" alt="图片预览" style="display: none"/>
     <button id="clear-image-btn">清除图片</button>
 </div>
 <div id="input-container">
@@ -224,7 +224,9 @@
         <label for="model-select">选择模型:</label>
         <select id="model-select">
             <option value="deepseek" selected>DeepSeek</option>
+            <option value="guiji">硅基流动</option>
             <option value="qwenvlplus">QwenVL Plus</option>
+            
         </select>
     </div>
    
@@ -360,7 +362,11 @@
             const selectedModel = this.modelSelect.value;
             if (selectedModel === 'deepseek') {
                 url = deepseekurl;
-            } else if (selectedModel === 'qwenvlplus') {
+            }
+            if (selectedModel === 'guiji') {
+                url = deepseekurl;
+            }
+            else if (selectedModel === 'qwenvlplus') {
                 url = vlurl;
             }
 
@@ -371,7 +377,8 @@
             // 构建请求体
             const requestBody = {
                 message: message,
-                reset: reset
+                reset: reset,
+                selectedModel: selectedModel
             };
 
             // 根据模型类型添加相应的图片参数
