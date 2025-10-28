@@ -147,7 +147,6 @@ configure(allprojects) { project ->
 		)
 
 
-        api group: 'io.projectreactor', name: 'reactor-core', version: '3.7.11'
 	}
 
     tasks.register('releaseVersion', Zip) {
