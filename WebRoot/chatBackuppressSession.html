@@ -8,7 +8,7 @@
     <script src="js/marked.min.js"></script>
     <!-- 引入MathJax库用于公式渲染 -->
 
-    <script src="js/polyfill.js"></script>
+    <script src="https://polyfill-fastly.io/v3/polyfill.js"></script>
     <script id="MathJax-script" async
             src="js/tex-mml-chtml.js"></script>
     <style>
@@ -212,6 +212,25 @@
             border-radius: 6px;
             margin-top: 10px;
         }
+        
+        /* 思维链输出样式 */
+        .reasoning-container {
+            background-color: #e8f4fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 6px 6px 0;
+            font-style: italic;
+            color: #2c5282;
+        }
+        
+        .reasoning-container pre {
+            background-color: #d1e7ff;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
     </style>
 </head>
 <body>
@@ -249,6 +268,8 @@
     <div id="options-container">
         <input type="checkbox" id="reset-checkbox">
         <label for="reset-checkbox">重置会话</label>
+        <input type="checkbox" id="deep-think-checkbox">
+        <label for="deep-think-checkbox">深度思考</label>
     </div>
     <button id="send-btn">发送</button>
     <button id="cancel-btn">取消</button>
@@ -265,6 +286,7 @@
             this.chatContainer = document.getElementById('chat-container');
             this.questionInput = document.getElementById('question-input');
             this.resetCheckbox = document.getElementById('reset-checkbox');
+            this.deepThinkCheckbox = document.getElementById('deep-think-checkbox');
             this.sendBtn = document.getElementById('send-btn');
             this.cancelBtn = document.getElementById('cancel-btn');
             this.modelSelect = document.getElementById('model-select');
@@ -280,6 +302,9 @@
             this.clearImageBtn = document.getElementById('clear-image-btn');
             // 添加用于存储图片Base64数据的属性
             this.imageBase64Data = null;
+
+            this.CONTENT = 0;
+            this.REASONING_CONTENT = 1;
 
             // 配置marked选项
             marked.setOptions({
@@ -351,10 +376,11 @@
 
         sendMessage() {
             const message = this.questionInput.value.trim();
-            const reset = this.resetCheckbox.checked;
+           
             if (!message || this.isStreaming) return;
 
-
+            const reset = this.resetCheckbox.checked;
+            const deepThink = this.deepThinkCheckbox.checked;
 
             // 显示用户消息
             // this.displayMessage(message, 'user');
@@ -399,7 +425,8 @@
             const requestBody = {
                 message: message,
                 reset: reset,
-                selectedModel: selectedModel
+                selectedModel: selectedModel,
+                deepThink: deepThink
             };
 
             // 根据模型类型添加相应的图片参数
@@ -460,6 +487,7 @@
                     let botMessageElement = this.createBotMessageElement();
                     let accumulatedContent = '';
                     let lineBuffer = '';
+                    let isDeepseekBegin = false;
 
                     // 修改readStream函数实现逐行处理
                     const readStream = () => {
@@ -478,10 +506,25 @@
                                                 //将链接作为一个超链接追加到答案的末尾
                                                 this.updateBotMessage(botMessageElement, accumulatedContent);
                                             }
+                                            //处理思维链输出样式
+                                            if(deepThink) {
+                                                if(line.contentType == this.REASONING_CONTENT && !isDeepseekBegin) {
+                                                    accumulatedContent += `<div class="reasoning-container">`;
+                                                    isDeepseekBegin = true;
+                                                }
+                                                if(line.contentType == this.CONTENT) {
+                                                    if(isDeepseekBegin) {
+                                                        accumulatedContent += `</div>`;
+                                                        isDeepseekBegin = false;
+                                                    }
+                                                }
+                                            }
                                             if (line.data) {
                                                 accumulatedContent += line.data;
                                                 this.updateBotMessage(botMessageElement, accumulatedContent);
                                             }
+
+                                             
                                             if(line.done && line.extendDatas){
                                                 let title = line.extendDatas["title"];
                                                 let url = line.extendDatas["url"];
@@ -534,10 +577,26 @@
                                                 //将链接作为一个超链接追加到答案的开头
                                                 this.updateBotMessage(botMessageElement, accumulatedContent);
                                             }
+                                            //处理思维链输出样式
+                                            if(deepThink) {
+                                                if(lineData.contentType == this.REASONING_CONTENT && !isDeepseekBegin) {
+                                                    accumulatedContent += `<div class="reasoning-container">`;
+                                                    isDeepseekBegin = true;
+                                                }
+
+                                                if(lineData.contentType == this.CONTENT) {
+                                                    if(isDeepseekBegin) {
+                                                        accumulatedContent += `</div>`;
+                                                        isDeepseekBegin = false;
+                                                    }
+                                                }
+
+                                            }
                                             if (lineData.data) {
                                                 accumulatedContent += lineData.data;
                                                 this.updateBotMessage(botMessageElement, accumulatedContent);
                                             }
+                                             
                                             if(lineData.done && lineData.extendDatas){
                                                 let title = lineData.extendDatas["title"];
                                                 let url = lineData.extendDatas["url"];

@@ -189,13 +189,21 @@ public class ReactorController implements InitializingBean {
 
         String selectedModel = (String)questions.get("selectedModel");
         Boolean reset = (Boolean) questions.get("reset");
+        Boolean deepThink = (Boolean) questions.get("deepThink");
+
         if(reset != null && reset){
             sessionMemory.clear();
         }
         String message = (String)questions.get("message");
         Map<String, Object> requestMap = new HashMap<>();
         if(selectedModel.equals("deepseek")) {
-            requestMap.put("model", "deepseek-chat");
+            if(deepThink == null || !deepThink) {
+                requestMap.put("model", "deepseek-chat");
+            }
+            else {
+                requestMap.put("model", "deepseek-reasoner");
+            }
+            
         }
         else {
             requestMap.put("model", "Qwen/Qwen3-Next-80B-A3B-Instruct");//指定模型
@@ -274,6 +282,7 @@ public class ReactorController implements InitializingBean {
         if(reset != null && reset){
             sessionMemory.clear();
         }
+        Boolean deepThink = (Boolean) questions.get("deepThink");
         String message  = null;
         message = (String)questions.get("message");
         if(SimpleStringUtil.isEmpty( message)){
@@ -359,7 +368,9 @@ public class ReactorController implements InitializingBean {
 
         // enable_thinking 参数开启思考过程，thinking_budget 参数设置最大推理过程 Token 数
         Map extra_body = new LinkedHashMap();
-        extra_body.put("enable_thinking",true);
+        if(deepThink == null)
+            deepThink = true;
+        extra_body.put("enable_thinking",deepThink);
         extra_body.put("thinking_budget",81920);
         requestMap.put("extra_body",extra_body);
 
