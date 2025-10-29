@@ -507,16 +507,14 @@
                                                 this.updateBotMessage(botMessageElement, accumulatedContent);
                                             }
                                             //处理思维链输出样式
-                                            if(deepThink) {
-                                                if(line.contentType == this.REASONING_CONTENT && !isDeepseekBegin) {
-                                                    accumulatedContent += `<div class="reasoning-container">`;
-                                                    isDeepseekBegin = true;
-                                                }
-                                                if(line.contentType == this.CONTENT) {
-                                                    if(isDeepseekBegin) {
-                                                        accumulatedContent += `</div>`;
-                                                        isDeepseekBegin = false;
-                                                    }
+                                            if(line.contentType == this.REASONING_CONTENT && !isDeepseekBegin) {
+                                                accumulatedContent += `<div class="reasoning-container">`;
+                                                isDeepseekBegin = true;
+                                            }
+                                            if(line.contentType == this.CONTENT) {
+                                                if(isDeepseekBegin) {
+                                                    accumulatedContent += `</div>`;
+                                                    isDeepseekBegin = false;
                                                 }
                                             }
                                             if (line.data) {
@@ -578,20 +576,20 @@
                                                 this.updateBotMessage(botMessageElement, accumulatedContent);
                                             }
                                             //处理思维链输出样式
-                                            if(deepThink) {
-                                                if(lineData.contentType == this.REASONING_CONTENT && !isDeepseekBegin) {
-                                                    accumulatedContent += `<div class="reasoning-container">`;
-                                                    isDeepseekBegin = true;
-                                                }
-
-                                                if(lineData.contentType == this.CONTENT) {
-                                                    if(isDeepseekBegin) {
-                                                        accumulatedContent += `</div>`;
-                                                        isDeepseekBegin = false;
-                                                    }
-                                                }
-
+                                           
+                                            if(lineData.contentType == this.REASONING_CONTENT && !isDeepseekBegin) {
+                                                accumulatedContent += `<div class="reasoning-container">`;
+                                                isDeepseekBegin = true;
                                             }
+
+                                            if(lineData.contentType == this.CONTENT) {
+                                                if(isDeepseekBegin) {
+                                                    accumulatedContent += `</div>`;
+                                                    isDeepseekBegin = false;
+                                                }
+                                            }
+
+                                            
                                             if (lineData.data) {
                                                 accumulatedContent += lineData.data;
                                                 this.updateBotMessage(botMessageElement, accumulatedContent);
