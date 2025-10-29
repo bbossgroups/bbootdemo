@@ -44,13 +44,13 @@
             margin-bottom: 15px;
             flex-wrap: wrap;
         }
-        
+
         #question-input-container {
             flex: 1;
             display: flex;
             gap: 15px;
         }
-        
+
         #question-input {
             flex: 1;
             padding: 15px;
@@ -58,21 +58,21 @@
             border-radius: 6px;
             min-width: 200px;
         }
-        
+
         #image-input-container {
             display: none;
             flex: 1;
             margin-right: 15px; /* 添加此行 */
         }
-        
+
         #image-url-input {
             width: 100%;
             padding: 15px;
             border: 1.5px solid #ccc;
             border-radius: 6px;
-            
+
         }
-        
+
         /* 添加过渡动画使布局切换更平滑 */
         #question-input,
         #image-input-container {
@@ -156,14 +156,14 @@
         #reset-checkbox {
             margin-right: 5px;
         }
-        
+
         #model-selection {
             margin-right: 15px;
             display: flex;
             align-items: center;
             gap: 5px;
         }
-        
+
         #model-select {
             padding: 8px;
             border: 1.5px solid #ccc;
@@ -207,6 +207,11 @@
             border-radius: 5px;
         }
 
+        .generated-image {
+            max-width: 100%;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -223,14 +228,15 @@
     <div id="model-selection">
         <label for="model-select">选择模型:</label>
         <select id="model-select">
-            <option value="deepseek" selected>DeepSeek-LLM</option>
-            <option value="guiji">硅基流动-LLM</option>
-            <option value="qwenvlplus">QwenVL Plus（阿里百炼视觉）</option>
-            <option value="qwenvl-guiji">QwenVL32B（硅基流动视觉）</option>
-            
+            <option type="LLM" value="deepseek" selected>DeepSeek-LLM</option>
+            <option type="LLM" value="guiji">硅基流动-LLM</option>
+            <option type="VL" value="qwenvlplus">QwenVL Plus（阿里百炼视觉）</option>
+            <option type="VL" value="qwenvl-guiji">QwenVL32B（硅基流动视觉）</option>
+            <option type="IMAGE" value="qwen-image">qwen-image-plus（阿里百炼）</option>
+
         </select>
     </div>
-   
+
 
     <!-- 替换原有的<input type="text" id="question-input" ...> -->
     <div id="question-input-container">
@@ -262,6 +268,8 @@
             this.sendBtn = document.getElementById('send-btn');
             this.cancelBtn = document.getElementById('cancel-btn');
             this.modelSelect = document.getElementById('model-select');
+            let selectedOption = this.modelSelect.options[this.modelSelect.selectedIndex];
+            this.modelType = selectedOption.getAttribute('type');
 
             this.imageInputContainer = document.getElementById('image-input-container');
             this.imageUrlInput = document.getElementById('image-url-input');
@@ -282,7 +290,7 @@
             this.initEventListeners();
         }
 
-        
+
         initEventListeners() {
             this.sendBtn.addEventListener('click', () => this.sendMessage());
             this.cancelBtn.addEventListener('click', () => this.cancelStream());
@@ -324,7 +332,8 @@
         }
 
         toggleImageInput() {
-            if (this.modelSelect.value === 'qwenvlplus' || this.modelSelect.value === 'qwenvl-guiji') {
+            this.modelType = this.modelSelect.options[this.modelSelect.selectedIndex].getAttribute('type');
+            if (this.modelType === 'VL') {
                 this.imageInputContainer.style.display = 'block';
                 // 设置问题输入框固定宽度
                 this.questionInput.style.flex = 'unset';
@@ -339,11 +348,13 @@
             }
         }
 
-        
+
         sendMessage() {
             const message = this.questionInput.value.trim();
             const reset = this.resetCheckbox.checked;
             if (!message || this.isStreaming) return;
+
+
 
             // 显示用户消息
             // this.displayMessage(message, 'user');
@@ -358,18 +369,27 @@
             const deepseekurl = `/demoproject/reactor/deepseekBackuppressSession.api`;
             //千问视觉模型服务地址
             const vlurl = `/demoproject/reactor/qwenvl.api`;
+
+            //千问图片生成服务地址
+            const imageurl = `/demoproject/reactor/genImageByqwenimage.api`;
             // 替换原来的 let url = deepseekurl; 这一行
             let url;
+
+            switch(this.modelType) {
+                case 'LLM':
+                    url = deepseekurl;
+                    break;
+                case 'VL':
+                    url = vlurl;
+                    break;
+                case 'IMAGE':
+                    url = imageurl;
+                    break;
+                default:
+                    url = deepseekurl;
+            }
             const selectedModel = this.modelSelect.value;
-            if (selectedModel === 'deepseek') {
-                url = deepseekurl;
-            }
-            if (selectedModel === 'guiji') {
-                url = deepseekurl;
-            }
-            else if (selectedModel === 'qwenvlplus'  || this.modelSelect.value === 'qwenvl-guiji') {
-                url = vlurl;
-            }
+
 
             // 创建AbortController用于取消请求
             this.abortController = new AbortController();
@@ -383,7 +403,7 @@
             };
 
             // 根据模型类型添加相应的图片参数
-            if (selectedModel === 'qwenvlplus'  || this.modelSelect.value === 'qwenvl-guiji') {
+            if (this.modelType === 'VL') {
                 // 如果是URL模式且有输入URL，则使用URL
                 if (this.imageUrlInput.value.trim()) {
                     requestBody.imageUrl = this.imageUrlInput.value.trim();
@@ -411,6 +431,27 @@
 
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    // 特殊处理图像生成模型的响应
+                    if (this.modelType === 'IMAGE') {
+                        return response.json().then(data => {
+                            this.isStreaming = false;
+                            let botMessageElement = this.createBotMessageElement();
+
+                            // 显示生成的图片
+                            if (data && data.imageUrl) {
+                                const img = document.createElement('img');
+                                img.src = data.imageUrl;
+                                img.className = 'generated-image';
+                                img.alt = '生成的图片';
+                                botMessageElement.appendChild(img);
+                            } else {
+                                botMessageElement.textContent = '图片生成失败';
+                            }
+
+                            this.scrollToBottom();
+                        });
                     }
 
                     // 获取响应流
@@ -554,7 +595,7 @@
                 const textDiv = document.createElement('div');
                 textDiv.textContent = content;
                 messageDiv.appendChild(textDiv);
-               
+
             }
 
             // 如果有预览图片，则添加图片
@@ -563,16 +604,16 @@
                 img.src = this.imagePreview.src;
                 img.alt = "用户上传的图片";
                 messageDiv.appendChild(img);
-               
+
             }
 
-           
+
             this.chatContainer.appendChild(messageDiv);
             this.scrollToBottom();
 
             // 注意：不清除图片在这里，而是在请求发送完成后清除
         }
-         
+
 
         createBotMessageElement() {
             const messageDiv = document.createElement('div');

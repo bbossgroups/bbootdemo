@@ -20,6 +20,7 @@ import org.frameworkset.spi.InitializingBean;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
 import org.frameworkset.spi.remote.http.reactor.ServerEvent;
 import org.frameworkset.util.annotations.RequestBody;
+import org.frameworkset.util.annotations.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -413,6 +414,92 @@ public class ReactorController implements InitializingBean {
                 });
         
         return flux;
+    }
+
+
+    /**
+     * 带会话记忆功能
+     * http://127.0.0.1/demoproject/chatBackuppressSession.html
+     * 参考文档：
+     * https://bailian.console.aliyun.com/?spm=5176.29597918.J_SEsSjsNv72yRuRFS2VknO.2.74ba7b08ig5jxD&tab=api#/api/?type=model&url=2975126
+     * '{
+     *     "model": "qwen-image-plus",
+     *     "input": {
+     *         "messages": [
+     *             {
+     *                 "role": "user",
+     *                 "content": [
+     *                     {
+     *                         "text": "一副典雅庄重的对联悬挂于厅堂之中，房间是个安静古典的中式布置，桌子上放着一些青花瓷，对联上左书“义本生知人机同道善思新”，右书“通云赋智乾坤启数高志远”， 横批“智启通义”，字体飘逸，中间挂在一着一副中国风的画作，内容是岳阳楼。"
+     *                     }
+     *                 ]
+     *             }
+     *         ]
+     *     },
+     *     "parameters": {
+     *         "negative_prompt": "",
+     *         "prompt_extend": true,
+     *         "watermark": true,
+     *         "size": "1328*1328"
+     *     }
+     * @param questions
+     * @return
+     */
+    public @ResponseBody Map genImageByqwenimage(@RequestBody Map<String,Object> questions) throws InterruptedException {
+//        String selectedModel = (String)questions.get("selectedModel");
+    
+        String message  = null;
+        message = questions != null?(String)questions.get("message"):null;
+        if(SimpleStringUtil.isEmpty( message)){
+            message = "生成一颗桂花树";
+        }
+ 
+
+
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("model", "qwen-image-plus");
+
+
+        Map<String,Object> input = new LinkedHashMap<>();
+        
+       
+        // 构建消息历史列表，包含之前的会话记忆
+        
+//        List<Map<String, Object>> messages = new ArrayList<>();
+        List<Map<String, Object>> messages = new ArrayList<>();
+        Map<String, Object> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        
+        List contents = new ArrayList<>();
+        Map contentData = null;
+        contentData = new LinkedHashMap();
+        contentData.put("text", message);
+
+        contents.add(contentData);
+        userMessage.put("content", contents);
+        messages.add(userMessage);
+        input.put("messages", messages);
+        requestMap.put("input", input);
+
+        // enable_thinking 参数开启思考过程，thinking_budget 参数设置最大推理过程 Token 数
+        Map parameters = new LinkedHashMap();
+        parameters.put("negative_prompt","");
+        parameters.put("prompt_extend",true);
+        parameters.put("watermark",true);
+        parameters.put("size","1328*1328");
+        requestMap.put("parameters", parameters);
+
+        Map data = HttpRequestProxy.sendJsonBody("qwenvlplus",requestMap,"/api/v1/services/aigc/multimodal-generation/generation",Map.class);
+        Map output = (Map)data.get("output");
+        List choices = (List)output.get("choices");
+        Map messageData = (Map)((Map)choices.get(0)).get("message");
+        List imageContentData = (List)messageData.get("content");
+        Map image = (Map) imageContentData.get(0);
+        String imageUrl = (String)image.get("image");
+        
+        Map ret = new HashMap();
+        ret.put("imageUrl",imageUrl);
+        return ret;
     }
  
 
