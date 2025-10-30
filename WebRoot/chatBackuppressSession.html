@@ -10,7 +10,7 @@
 
     <script src="https://polyfill-fastly.io/v3/polyfill.js"></script>
     <script id="MathJax-script" async
-            src="js/tex-mml-chtml.js"></script>
+            src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -488,6 +488,7 @@
                     let accumulatedContent = '';
                     let lineBuffer = '';
                     let isDeepseekBegin = false;
+                    let finishReason  = null;
 
                     // 修改readStream函数实现逐行处理
                     const readStream = () => {
@@ -521,8 +522,15 @@
                                                 accumulatedContent += line.data;
                                                 this.updateBotMessage(botMessageElement, accumulatedContent);
                                             }
-
-                                             
+                                            if(!finishReason && line.finishReason){
+                                                finishReason = line.finishReason;
+                                            }                                         
+                                            if(finishReason && finishReason != 'stop'){
+                                                //对话异常终止
+                                                accumulatedContent = accumulatedContent +`....对话异常终止,终止原因：`+finishReason
+                                                this.updateBotMessage(botMessageElement, accumulatedContent );
+                                                finishReason = null;
+                                            }
                                             if(line.done && line.extendDatas){
                                                 let title = line.extendDatas["title"];
                                                 let url = line.extendDatas["url"];
@@ -594,7 +602,16 @@
                                                 accumulatedContent += lineData.data;
                                                 this.updateBotMessage(botMessageElement, accumulatedContent);
                                             }
-                                             
+
+                                            if(!finishReason && lineData.finishReason){
+                                                finishReason = lineData.finishReason;
+                                            }
+                                            if(finishReason && finishReason != 'stop'){
+                                                //对话异常终止
+                                                accumulatedContent = accumulatedContent +`....对话异常终止,终止原因：`+finishReason
+                                                this.updateBotMessage(botMessageElement, accumulatedContent);
+                                                finishReason = null;
+                                            }
                                             if(lineData.done && lineData.extendDatas){
                                                 let title = lineData.extendDatas["title"];
                                                 let url = lineData.extendDatas["url"];
