@@ -17,8 +17,9 @@ package org.frameworkset.web.react;
 
 import com.frameworkset.util.SimpleStringUtil;
 import org.frameworkset.spi.InitializingBean;
+import org.frameworkset.spi.ai.model.ImageEvent;
+import org.frameworkset.spi.ai.model.ServerEvent;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
-import org.frameworkset.spi.remote.http.reactor.ServerEvent;
 import org.frameworkset.util.annotations.RequestBody;
 import org.frameworkset.util.annotations.ResponseBody;
 import org.slf4j.Logger;
@@ -398,6 +399,7 @@ public class ReactorController implements InitializingBean {
                             event.addExtendData("url","https://www.bbossgroups.com");
                             event.addExtendData("title","bboss官网");
                         }
+                        event.getContentType();
                         if(!event.isDone() ) {
                              
                             // 累积回答内容
@@ -500,13 +502,9 @@ public class ReactorController implements InitializingBean {
         parameters.put("size","1328*1328");
         requestMap.put("parameters", parameters);
 
-        Map data = HttpRequestProxy.sendJsonBody("qwenvlplus",requestMap,"/api/v1/services/aigc/multimodal-generation/generation",Map.class);
-        Map output = (Map)data.get("output");
-        List choices = (List)output.get("choices");
-        Map messageData = (Map)((Map)choices.get(0)).get("message");
-        List imageContentData = (List)messageData.get("content");
-        Map image = (Map) imageContentData.get(0);
-        String imageUrl = (String)image.get("image");
+        ImageEvent data = HttpRequestProxy.multimodalImageGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",requestMap);
+        
+        String imageUrl = data.getImageUrl();
         
         Map ret = new HashMap();
         ret.put("imageUrl",imageUrl);
