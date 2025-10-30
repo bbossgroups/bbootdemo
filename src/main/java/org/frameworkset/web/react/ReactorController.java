@@ -72,7 +72,7 @@ public class ReactorController implements InitializingBean {
 
         requestMap.put("messages", messages);
         requestMap.put("stream", true);
-        requestMap.put("max_tokens", 2048);
+        requestMap.put("max_tokens", 8192);
         requestMap.put("temperature", 0.7);
         return HttpRequestProxy.streamChatCompletion("/chat/completions",requestMap);
 //                .doOnSubscribe(subscription -> logger.info("开始订阅流..."))
@@ -101,7 +101,7 @@ public class ReactorController implements InitializingBean {
 
         requestMap.put("messages", messages);
         requestMap.put("stream", true);
-        requestMap.put("max_tokens", 2048);
+        requestMap.put("max_tokens", 8192);
         requestMap.put("temperature", 0.7);
         return HttpRequestProxy.streamChatCompletion("/chat/completions",requestMap).limitRate(5) // 限制请求速率
                 .buffer(3) ;   // 每3个元素缓冲一次
@@ -132,7 +132,7 @@ public class ReactorController implements InitializingBean {
 
         requestMap.put("messages", messages);
         requestMap.put("stream", true);
-        requestMap.put("max_tokens", 2048);
+        requestMap.put("max_tokens", 8192);
         requestMap.put("temperature", 0.7);
         Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent("/chat/completions",requestMap);
 
@@ -164,7 +164,7 @@ public class ReactorController implements InitializingBean {
 
         requestMap.put("messages", messages);
         requestMap.put("stream", true);
-        requestMap.put("max_tokens", 2048);
+        requestMap.put("max_tokens", 8192);
         requestMap.put("temperature", 0.7);
         Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent("/chat/completions",requestMap);
 
@@ -181,7 +181,7 @@ public class ReactorController implements InitializingBean {
     static List<Map<String, Object>> sessionMemory = new ArrayList<>();
 
      /**
-     * 背压案例 - 带会话记忆功能（完善版）
+     * 智能问答功能，背压案例 - 带会话记忆功能（完善版）
      * http://127.0.0.1/demoproject/chatBackuppressSession.html
      * @param questions
      * @return
@@ -221,7 +221,7 @@ public class ReactorController implements InitializingBean {
     
         requestMap.put("messages", messages);
         requestMap.put("stream", true);
-        requestMap.put("max_tokens", 2048);
+        requestMap.put("max_tokens", 8192);
         requestMap.put("temperature", 0.7);
         Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent(selectedModel,"/chat/completions",requestMap);
     
@@ -272,7 +272,7 @@ public class ReactorController implements InitializingBean {
     }
 
     /**
-     * 带会话记忆功能
+     * 图片识别功能，带会话记忆功能
      * http://127.0.0.1/demoproject/chatBackuppressSession.html
      * @param questions
      * @return
@@ -378,7 +378,7 @@ public class ReactorController implements InitializingBean {
 //		{
 //				'enable_thinking': True,
 //				"thinking_budget": 81920},
-//		requestMap.put("max_tokens", 2048);
+//		requestMap.put("max_tokens", 8192);
 //		requestMap.put("temperature", 0.7);
         // 用于累积完整的回答
         StringBuilder completeAnswer = new StringBuilder();
@@ -431,7 +431,7 @@ public class ReactorController implements InitializingBean {
 
 
     /**
-     * 带会话记忆功能
+     * 图片生成功能，无会话记忆功能
      * http://127.0.0.1/demoproject/chatBackuppressSession.html
      * 参考文档：
      * https://bailian.console.aliyun.com/?spm=5176.29597918.J_SEsSjsNv72yRuRFS2VknO.2.74ba7b08ig5jxD&tab=api#/api/?type=model&url=2975126
