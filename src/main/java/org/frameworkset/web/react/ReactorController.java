@@ -22,10 +22,13 @@ import org.frameworkset.spi.ai.model.ServerEvent;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
 import org.frameworkset.util.annotations.RequestBody;
 import org.frameworkset.util.annotations.ResponseBody;
+import org.frameworkset.web.multipart.MultipartFile;
+import org.frameworkset.web.multipart.MultipartHttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 
+import javax.servlet.http.HttpServletRequest;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -511,6 +514,134 @@ public class ReactorController implements InitializingBean {
         return ret;
     }
  
+	/**
+	 * 音频识别功能
+	 * https://bailian.console.aliyun.com/?spm=5176.29597918.J_SEsSjsNv72yRuRFS2VknO.2.74ba7b08ig5jxD&tab=doc#/doc/?type=model&url=2979031
+	 * @param request
+	 * @return
+	 */
+	public Flux<List<ServerEvent>> audioRecognition(MultipartFile audio,HttpServletRequest request) {
+		String selectedModel = request.getParameter("selectedModel");
+		String reset  = request.getParameter("reset");
+		if(reset != null && reset.equals("true")){
+			sessionMemory.clear();
+		}
+		String deepThink_  = request.getParameter("deepThink");
+		String message  = null;
+		message  = request.getParameter("message");
+		if(SimpleStringUtil.isEmpty( message)){
+			message = "介绍音频内容";
+		}
+ 
+
+// 		String datas = String.format("""
+//				messages = [
+//				    {
+//				        "role": "system",
+//				        "content": [
+//				            // 此处用于配置定制化识别的message
+//				            {"text": "%s"},
+//				        ]
+//				    },
+//				    {
+//				        "role": "user",
+//				        "content": [
+//				            {"audio": "https://dashscope.oss-cn-beijing.aliyuncs.com/audios/welcome.mp3"},
+//				        ]
+//				    }
+//				]
+//				""",  message);
+		 
+		
+		
+		Map<String, Object> requestMap = new HashMap<>();
+		requestMap.put("model", "qwen3-asr-flash");
+		
+		
+		// 构建消息历史列表，包含之前的会话记忆
+		List<Map<String, Object>> messages = new ArrayList<>(sessionMemory);
+		
+		// 添加当前用户消息
+		Map<String, Object> userMessage = new HashMap<>();
+		userMessage.put("role", "system");
+		List<Map> contents = new ArrayList<>();
+		Map contentData = new LinkedHashMap();
+		contentData.put("text", message);
+		contents.add(contentData);
+		userMessage.put("content", contents);
+		messages.add(userMessage);
+		
+		userMessage = new HashMap<>();
+		userMessage.put("role", "user");
+		contents = new ArrayList<>();
+		contentData = new LinkedHashMap();
+		contentData.put("audio", "https://dashscope.oss-cn-beijing.aliyuncs.com/audios/welcome.mp3");
+		contents.add(contentData);
+		userMessage.put("content", contents);
+		messages.add(userMessage);
+		Map<String,Object> input = new LinkedHashMap<>();
+		input.put("messages", messages);
+		requestMap.put("input", input);
+		requestMap.put("stream", true);
+		
+		Map asr_options = new LinkedHashMap();
+		asr_options.put("enable_itn",true);
+		Map parameters = new LinkedHashMap();
+		parameters.put("asr_options", asr_options);
+        parameters.put("incremental_output", true);
+//        "incremental_output": true,
+		requestMap.put("parameters", parameters);
+//		requestMap.put("max_tokens", 8192);
+		requestMap.put("result_format", "message");
+		// 用于累积完整的回答
+		StringBuilder completeAnswer = new StringBuilder();
+		Flux<List<ServerEvent>> flux = HttpRequestProxy.streamChatCompletionEvent("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",requestMap)
+                .doOnNext(chunk -> {
+
+                    if(!chunk.isDone()) {
+                        logger.info(chunk.getData());
+                    }
+
+                }).limitRate(5) // 限制请求速率
+					.buffer(3);
+		 
+		flux = flux.doOnNext(bufferedEvents -> {
+			// 处理模型响应并更新会话记忆
+			for(ServerEvent event : bufferedEvents) {
+				//答案前后都可以添加链接和标题
+				if(event.isFirst() || event.isDone()){
+					event.addExtendData("url","https://www.bbossgroups.com");
+					event.addExtendData("title","bboss官网");
+				}
+				event.getContentType();
+				if(!event.isDone() ) {
+					
+					// 累积回答内容
+					if(event.getData() != null) {
+						completeAnswer.append(event.getData());
+					}
+				} else  {
+					
+					if( completeAnswer.length() > 0) {
+						// 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
+						Map<String, Object> assistantMessage = new HashMap<>();
+						assistantMessage.put("role", "assistant");
+						assistantMessage.put("content", completeAnswer.toString());
+						sessionMemory.add(assistantMessage);
+						
+						// 维护记忆窗口大小为20
+						if (sessionMemory.size() > 20) {
+							sessionMemory.remove(0);
+						}
+					}
+					
+					
+				}
+			}
+		});
+		
+		return flux;
+	}
 
 
     /**

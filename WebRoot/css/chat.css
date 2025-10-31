@@ -1,0 +1,292 @@
+body {
+    font-family: Arial, sans-serif;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 30px;
+}
+
+#chat-container {
+    border: 1.5px solid #ccc;
+    height: 540px;
+    overflow-y: auto;
+    padding: 15px;
+    margin-bottom: 30px;
+    background-color: #f9f9f9;
+}
+
+.message {
+    margin-bottom: 15px;
+    padding: 12px;
+    border-radius: 6px;
+    line-height: 1.5;
+}
+
+/* 更新现有的CSS样式 */
+/* 确保容器内的元素有统一的间距 */
+#input-container {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+#question-input-container {
+    flex: 1;
+    display: flex;
+    gap: 15px;
+}
+
+#question-input {
+    flex: 1;
+    padding: 15px;
+    border: 1.5px solid #ccc;
+    border-radius: 6px;
+    min-width: 250px;
+}
+
+#image-input-container {
+  
+    flex: 1;
+    margin-right: 15px; /* 添加此行 */
+}
+
+ 
+
+/* 添加过渡动画使布局切换更平滑 */
+#question-input,
+#image-input-container {
+    transition: all 0.3s ease;
+}
+
+
+button {
+    padding: 15px 30px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+/* Markdown样式中的padding和margin也需要调整 */
+.bot-message pre {
+    background-color: #f0f0f0;
+    padding: 15px;
+    border-radius: 6px;
+}
+
+.bot-message code {
+    background-color: #f0f0f0;
+    padding: 3px 6px;
+    border-radius: 4.5px;
+}
+
+.bot-message ul,
+.bot-message ol {
+    padding-left: 30px;
+}
+
+.bot-message blockquote {
+    border-left: 4.5px solid #ccc;
+    padding-left: 15px;
+    margin-left: 0;
+    color: #666;
+}
+
+.user-message {
+    background-color: #f0f0f0; /* 浅灰色背景 */
+    text-align: right;
+}
+.bot-message {
+    background-color: #ffffff; /* 白色背景 */
+}
+/* Markdown样式 */
+.bot-message h1,
+.bot-message h2,
+.bot-message h3 {
+    margin-top: 10px;
+    margin-bottom: 5px;
+}
+.bot-message p {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.bot-message pre code {
+    background-color: transparent;
+    padding: 0;
+}
+
+#send-btn {
+    background-color: #007bff;
+    color: white;
+}
+#cancel-btn {
+    background-color: #dc3545;
+    color: white;
+}
+.typing-indicator {
+    color: #666;
+    font-style: italic;
+}
+#options-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+#reset-checkbox {
+    margin-right: 5px;
+}
+
+#model-selection {
+    margin-right: 15px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#model-select {
+    padding: 8px;
+    border: 1.5px solid #ccc;
+    border-radius: 4px;
+}
+/* 新增图片上传相关样式 */
+#upload-container {
+    display: none;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.upload-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+#image-preview {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.image-url-container {
+    margin-top: 10px;
+}
+
+#image-url-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+
+.clear-btn {
+    padding: 8px 12px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.clear-btn:hover {
+    background-color: #5a6268;
+}
+
+#file-upload {
+    display: none;
+}
+
+.upload-label {
+    padding: 8px 15px;
+    background-color: #28a745;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.upload-label:hover {
+    background-color: #218838;
+}
+
+.user-message img {
+    max-width: 300px;
+    max-height: 200px;
+    margin-top: 10px;
+    border-radius: 5px;
+}
+
+.generated-image {
+    max-width: 100%;
+    border-radius: 6px;
+    margin-top: 10px;
+}
+
+/* 思维链输出样式 */
+.reasoning-container {
+    background-color: #e8f4fd;
+    border-left: 4px solid #2196F3;
+    padding: 15px;
+    margin: 15px 0;
+    border-radius: 0 6px 6px 0;
+    font-style: italic;
+    color: #2c5282;
+}
+
+.reasoning-container pre {
+    background-color: #d1e7ff;
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+/* 音频相关样式 */
+#audio-input-container {
+    display: none;
+    flex: 1;
+    align-items: center;
+    gap: 10px;
+    margin-right: 15px;
+}
+
+.upload-audio-label {
+    padding: 8px 15px;
+    background-color: #17a2b8;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.upload-audio-label:hover {
+    background-color: #138496;
+}
+
+#audio-preview {
+    max-width: 200px;
+    margin-top: 10px;
+}
+
+#record-btn {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#record-btn.recording {
+    background-color: #dc3545;
+}
+
+#recording-status {
+    color: red;
+    font-weight: bold;
+}

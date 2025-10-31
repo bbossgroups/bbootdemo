@@ -19,12 +19,31 @@
 
 <div id="chat-container"></div>
 <!-- 新增图片上传区域 -->
-<div id="upload-container">
-    <label for="file-upload" class="upload-label">选择图片</label>
-    <input id="file-upload" type="file" accept="image/*" />
-    <img id="image-preview" alt="图片预览" style="display: none"/>
-    <button id="clear-image-btn">清除图片</button>
+<!-- 优化后的图片上传区域 -->
+<div id="upload-container" style="display: none;">
+    <div class="upload-controls">
+        <label for="file-upload" class="upload-label">选择图片</label>
+        <input id="file-upload" type="file" accept="image/*" />
+        <button id="clear-image-btn" class="clear-btn">清除图片</button>
+    </div>
+    <div class="image-preview-container">
+        <img id="image-preview" alt="图片预览" style="display: none"/>
+    </div>
+    <div id="image-input-container" class="image-url-container">
+        <input type="text" id="image-url-input" placeholder="请输入图片地址..." />
+    </div>
 </div>
+
+<!-- 在 #input-container 中添加音频输入容器 -->
+<div id="audio-input-container" style="display: none; flex: 1; align-items: center; gap: 10px;">
+    <button id="record-btn">开始录音</button>
+    <span id="recording-status" style="display: none; color: red;">录音中...</span>
+    <input type="file" id="audio-file-input" accept="audio/*" style="display: none;" />
+    <label for="audio-file-input" class="upload-audio-label">选择音频文件</label>
+    <audio id="audio-preview" controls style="display: none; max-width: 200px;"></audio>
+    <button id="clear-audio-btn" style="display: none;">清除音频</button>
+</div>
+
 <div id="input-container">
     <div id="model-selection">
         <label for="model-select">选择模型:</label>
@@ -34,6 +53,7 @@
             <option type="VL" value="qwenvlplus">QwenVL Plus（阿里百炼视觉）</option>
             <option type="VL" value="qwenvl-guiji">QwenVL32B（硅基流动视觉）</option>
             <option type="IMAGE" value="qwen-image">qwen-image-plus（阿里百炼）</option>
+            <option type="AUDIO" value="audio-model">语音识别模型</option>
 
         </select>
     </div>
@@ -43,10 +63,7 @@
     <div id="question-input-container">
         <input type="text" id="question-input" placeholder="请输入你的问题..." />
     </div>
-    <!-- 在input-container中添加图片地址输入框 -->
-    <div id="image-input-container" style="display: none; flex: 1;">
-        <input type="text" id="image-url-input" placeholder="请输入图片地址..." />
-    </div>
+
     <div id="options-container">
         <input type="checkbox" id="reset-checkbox">
         <label for="reset-checkbox">重置会话</label>
@@ -74,8 +91,8 @@
             this.modelSelect = document.getElementById('model-select');
             let selectedOption = this.modelSelect.options[this.modelSelect.selectedIndex];
             this.modelType = selectedOption.getAttribute('type');
-
-            this.imageInputContainer = document.getElementById('image-input-container');
+            this.uploadContainer = document.getElementById('upload-container');
+            // this.imageInputContainer = document.getElementById('image-input-container');
             this.imageUrlInput = document.getElementById('image-url-input');
 
             // 新增图片相关属性
@@ -84,6 +101,24 @@
             this.clearImageBtn = document.getElementById('clear-image-btn');
             // 添加用于存储图片Base64数据的属性
             this.imageBase64Data = null;
+            
+            
+            // 在 constructor 中添加新属性
+            this.audioInputContainer = document.getElementById('audio-input-container');
+            this.recordBtn = document.getElementById('record-btn');
+            this.recordingStatus = document.getElementById('recording-status');
+            this.audioFileInput = document.getElementById('audio-file-input');
+            this.audioPreview = document.getElementById('audio-preview');
+            this.clearAudioBtn = document.getElementById('clear-audio-btn');
+            
+            // 添加音频相关变量
+            this.mediaRecorder = null;
+            this.audioChunks = [];
+            this.audioBlob = null;
+            
+            // 在 CONTENT 和 REASONING_CONTENT 后面添加
+            this.AUDIO_CONTENT = 2;
+
 
             this.CONTENT = 0;
             this.REASONING_CONTENT = 1;
@@ -113,7 +148,112 @@
             // 新增图片上传相关事件监听
             this.fileUpload.addEventListener('change', (e) => this.handleImageUpload(e));
             this.clearImageBtn.addEventListener('click', () => this.clearImage());
+
+            // 添加音频相关事件监听
+            this.modelSelect.addEventListener('change', () => this.toggleAudioInput());
+            this.recordBtn.addEventListener('click', () => this.toggleRecording());
+            this.audioFileInput.addEventListener('change', (e) => this.handleAudioFileUpload(e));
+            this.clearAudioBtn.addEventListener('click', () => this.clearAudio());
+        
         }
+        
+        
+        toggleAudioInput() {
+            this.modelType = this.modelSelect.options[this.modelSelect.selectedIndex].getAttribute('type');
+            if (this.modelType === 'VL') {
+                this.uploadContainer.style.display = 'block';
+                this.audioInputContainer.style.display = 'none';
+                // 设置问题输入框固定宽度
+                this.questionInput.style.flex = 'unset';
+                this.questionInput.style.width = '200px';
+            } else if (this.modelType === 'AUDIO') {
+                this.uploadContainer.style.display = 'none';
+                this.audioInputContainer.style.display = 'flex';
+                // 设置问题输入框固定宽度
+                this.questionInput.style.flex = 'unset';
+                this.questionInput.style.width = '200px';
+            } else {
+                this.uploadContainer.style.display = 'none';
+                this.audioInputContainer.style.display = 'none';
+                // 恢复问题输入框弹性宽度
+                this.questionInput.style.flex = '1';
+                this.questionInput.style.width = '';
+                // 清空图片地址
+                this.imageUrlInput.value = '';
+            }
+        }
+        
+        toggleRecording() {
+            if (!this.mediaRecorder) {
+                // 开始录音
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        this.mediaRecorder = new MediaRecorder(stream);
+                        this.audioChunks = [];
+                        
+                        this.mediaRecorder.ondataavailable = event => {
+                            this.audioChunks.push(event.data);
+                        };
+                        
+                        this.mediaRecorder.onstop = () => {
+                            this.audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
+                            const audioUrl = URL.createObjectURL(this.audioBlob);
+                            this.audioPreview.src = audioUrl;
+                            this.audioPreview.style.display = 'block';
+                            this.clearAudioBtn.style.display = 'inline-block';
+                            
+                            // 停止所有音轨
+                            stream.getTracks().forEach(track => track.stop());
+                        };
+                        
+                        this.mediaRecorder.start();
+                        this.recordBtn.textContent = '停止录音';
+                        this.recordBtn.classList.add('recording');
+                        this.recordingStatus.style.display = 'inline';
+                    })
+                    .catch(err => {
+                        console.error('录音功能不可用:', err);
+                        alert('无法访问麦克风，请检查权限设置');
+                    });
+            } else {
+                // 停止录音
+                this.mediaRecorder.stop();
+                this.mediaRecorder = null;
+                this.recordBtn.textContent = '开始录音';
+                this.recordBtn.classList.remove('recording');
+                this.recordingStatus.style.display = 'none';
+            }
+        }
+        
+        handleAudioFileUpload(event) {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('audio/')) {
+                this.audioBlob = file;
+                const audioUrl = URL.createObjectURL(file);
+                this.audioPreview.src = audioUrl;
+                this.audioPreview.style.display = 'block';
+                this.clearAudioBtn.style.display = 'inline-block';
+            } else {
+                this.clearAudio();
+            }
+        }
+        
+        clearAudio() {
+            this.audioFileInput.value = '';
+            this.audioPreview.style.display = 'none';
+            this.audioPreview.src = '';
+            this.clearAudioBtn.style.display = 'none';
+            this.audioBlob = null;
+            this.audioChunks = [];
+            if (this.mediaRecorder) {
+                this.mediaRecorder.stop();
+                this.mediaRecorder = null;
+            }
+            this.recordBtn.textContent = '开始录音';
+            this.recordBtn.classList.remove('recording');
+            this.recordingStatus.style.display = 'none';
+        }
+
 
         handleImageUpload(event) {
             const file = event.target.files[0];
@@ -141,12 +281,12 @@
         toggleImageInput() {
             this.modelType = this.modelSelect.options[this.modelSelect.selectedIndex].getAttribute('type');
             if (this.modelType === 'VL') {
-                this.imageInputContainer.style.display = 'block';
+                this.uploadContainer.style.display = 'block';
                 // 设置问题输入框固定宽度
                 this.questionInput.style.flex = 'unset';
                 this.questionInput.style.width = '200px';
             } else {
-                this.imageInputContainer.style.display = 'none';
+                this.uploadContainer.style.display = 'none';
                 // 恢复问题输入框弹性宽度
                 this.questionInput.style.flex = '1';
                 this.questionInput.style.width = '';
@@ -159,14 +299,21 @@
         sendMessage() {
             const message = this.questionInput.value.trim();
            
-            if (!message || this.isStreaming) return;
+            // if (!message || this.isStreaming) return;
+            if ((!message && this.modelType !== 'AUDIO') || this.isStreaming) return;
 
             const reset = this.resetCheckbox.checked;
             const deepThink = this.deepThinkCheckbox.checked;
 
             // 显示用户消息
             // this.displayMessage(message, 'user');
-            this.displayUserMessage(message);
+            // this.displayUserMessage(message);
+            // 显示用户消息
+            if (this.modelType === 'AUDIO') {
+                this.displayUserAudioMessage();
+            } else {
+                this.displayUserMessage(message);
+            }
             this.questionInput.value = '';
 
             // 显示机器人正在输入指示器
@@ -180,7 +327,8 @@
 
             //千问图片生成服务地址
             const imageurl = `/demoproject/reactor/genImageByqwenimage.api`;
-            // 替换原来的 let url = deepseekurl; 这一行
+            // 音频识别服务地址
+            const audiourl = `/demoproject/reactor/audioRecognition.api`;
             let url;
 
             switch(this.modelType) {
@@ -192,6 +340,9 @@
                     break;
                 case 'IMAGE':
                     url = imageurl;
+                    break;
+                case 'AUDIO':
+                    url = audiourl;
                     break;
                 default:
                     url = deepseekurl;
@@ -224,16 +375,32 @@
             }
 
             this.clearImage();
+            let fetchParams = {};
+            if (this.modelType === 'AUDIO' && this.audioBlob) {
+                const formData = new FormData();
+                formData.append('audio', this.audioBlob);
+                formData.append('reset', reset);
+                formData.append('message', message);
+                formData.append('selectedModel', selectedModel);
+                fetchParams = {
+                    method: 'POST',
+                    body: formData,
+                    signal: this.abortController.signal
+                }
+            }
+            else{
+                fetchParams =  {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    // 在sendMessage方法中，修改fetch请求的body部分
+                    body: JSON.stringify(requestBody),
+                    signal: this.abortController.signal
+                };
+            }
             // 使用fetch API进行POST流式请求，包含reset参数
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                // 在sendMessage方法中，修改fetch请求的body部分
-                body: JSON.stringify(requestBody),
-                signal: this.abortController.signal
-            })
+            fetch(url, fetchParams)
                 .then(response => {
                     // 移除正在输入指示器
                     this.removeTypingIndicator(indicatorId);
@@ -307,7 +474,7 @@
                                             if(!finishReason && line.finishReason){
                                                 finishReason = line.finishReason;
                                             }                                         
-                                            if(finishReason && finishReason != 'stop'){
+                                            if(this.terminalIntercept(finishReason)){
                                                 //对话异常终止
                                                 accumulatedContent = accumulatedContent +`....对话异常终止,终止原因：`+finishReason
                                                 this.updateBotMessage(botMessageElement, accumulatedContent );
@@ -388,7 +555,7 @@
                                             if(!finishReason && lineData.finishReason){
                                                 finishReason = lineData.finishReason;
                                             }
-                                            if(finishReason && finishReason != 'stop'){
+                                            if(this.terminalIntercept(finishReason)){
                                                 //对话异常终止
                                                 accumulatedContent = accumulatedContent +`....对话异常终止,终止原因：`+finishReason
                                                 this.updateBotMessage(botMessageElement, accumulatedContent);
@@ -442,6 +609,26 @@
                 this.displayErrorMessage('请求已被用户取消');
             }
         }
+
+        displayUserAudioMessage() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message user-message';
+
+            const textDiv = document.createElement('div');
+            textDiv.textContent = "[音频消息]";
+            messageDiv.appendChild(textDiv);
+
+            // 添加音频预览
+            if (this.audioPreview.style.display !== 'none') {
+                const audioClone = this.audioPreview.cloneNode(true);
+                audioClone.controls = true;
+                audioClone.style.display = 'block';
+                messageDiv.appendChild(audioClone);
+            }
+
+            this.chatContainer.appendChild(messageDiv);
+            this.scrollToBottom();
+        }
         displayUserMessage(content) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message user-message';
@@ -479,6 +666,13 @@
             return messageDiv;
         }
 
+        terminalIntercept(finishReason){
+            if(finishReason && finishReason != 'stop' && finishReason != 'null'){
+                //对话异常终止
+                return  true;
+            }
+            return false;
+        }
         updateBotMessage(element, content) {
             // 实时更新Markdown内容
             element.innerHTML = marked.parse(content);
