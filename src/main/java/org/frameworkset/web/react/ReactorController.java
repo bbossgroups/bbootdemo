@@ -19,6 +19,8 @@ import com.frameworkset.util.SimpleStringUtil;
 import org.frameworkset.spi.InitializingBean;
 import org.frameworkset.spi.ai.model.ImageEvent;
 import org.frameworkset.spi.ai.model.ServerEvent;
+import org.frameworkset.spi.ai.util.AudioDataBuilder;
+import org.frameworkset.spi.ai.util.MessageBuilder;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
 import org.frameworkset.util.annotations.RequestBody;
 import org.frameworkset.util.annotations.ResponseBody;
@@ -217,9 +219,7 @@ public class ReactorController implements InitializingBean {
         List<Map<String, Object>> messages = new ArrayList<>(sessionMemory);
         
         // 添加当前用户消息
-        Map<String, Object> userMessage = new HashMap<>();
-        userMessage.put("role", "user");
-        userMessage.put("content", message);
+        Map<String, Object> userMessage = MessageBuilder.buildUserMessage( message);
         messages.add(userMessage);
     
         requestMap.put("messages", messages);
@@ -257,9 +257,7 @@ public class ReactorController implements InitializingBean {
                     
                     if( completeAnswer.length() > 0) {
                         // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                        Map<String, Object> assistantMessage = new HashMap<>();
-                        assistantMessage.put("role", "assistant");
-                        assistantMessage.put("content", completeAnswer.toString());
+                        Map<String, Object> assistantMessage = MessageBuilder.buildAssistantMessage(completeAnswer.toString());                        
                         sessionMemory.add(assistantMessage);
 
                         // 维护记忆窗口大小为20
@@ -292,61 +290,6 @@ public class ReactorController implements InitializingBean {
         if(SimpleStringUtil.isEmpty( message)){
             message = "介绍图片内容并计算结果";
         }
-//		
-//		[
-//		{
-//			"type": "image_url",
-//				"image_url": {
-//			"url": "https://img.alicdn.com/imgextra/i1/O1CN01gDEY8M1W114Hi3XcN_!!6000000002727-0-tps-1024-406.jpg"
-//		},
-//		},
-//		{"type": "text", "text": "这道题怎么解答？"},
-//            ]
-        String imageBase64  = (String)questions.get("imageBase64");
-        String imageUrl = (String)questions.get("imageUrl");
-        if(imageUrl != null) {
-            imageUrl = imageUrl.trim();
-        }
-        
-//        if(SimpleStringUtil.isEmpty(imageUrl) && SimpleStringUtil.isEmpty(imageBase64)){
-//            imageUrl = "https://img.alicdn.com/imgextra/i1/O1CN01gDEY8M1W114Hi3XcN_!!6000000002727-0-tps-1024-406.jpg";
-//        }
-//        
-        List contents = new ArrayList<>();
-        Map contentData = null;
-        if(SimpleStringUtil.isNotEmpty(imageUrl)) {
-            contentData = new LinkedHashMap();
-            contentData.put("type", "image_url");
-            String _imageUrl = imageUrl;
-            contentData.put("image_url", new HashMap<String, String>() {{
-
-                put("url", _imageUrl);
-            }});
-            contents.add(contentData);
-        }
-        if(SimpleStringUtil.isNotEmpty(imageBase64)) {
-            contentData = new LinkedHashMap();
-            contentData.put("type", "image_url");
-            String _imageUrl = imageBase64;
-            contentData.put("image_url", new HashMap<String, String>() {{
-
-                put("url", _imageUrl);
-            }});
-            contents.add(contentData);
-        }
-
-//		content.add(new HashMap<String, Object>(){{
-//			put("type", "image_url");
-//			put("image_url", new HashMap<String, String>(){{
-//				put("url", "https://img.alicdn.com/imgextra/i1/O1CN01gDEY8M1W114Hi3XcN_!!6000000002727-0-tps-1024-406.jpg");
-//			}});
-//		}});
-        contentData = new LinkedHashMap();
-        contentData.put("type", "text");
-        contentData.put("text", message);;
-        contents.add(contentData);
-
-
         Map<String, Object> requestMap = new HashMap<>();
         if(selectedModel.equals("qwenvlplus")) {
             requestMap.put("model", "qwen3-vl-plus");
@@ -355,14 +298,26 @@ public class ReactorController implements InitializingBean {
 
             requestMap.put("model", "Qwen/Qwen3-VL-32B-Thinking");
         }
-
-        
         // 构建消息历史列表，包含之前的会话记忆
         List<Map<String, Object>> messages = new ArrayList<>(sessionMemory);
-//        List<Map<String, Object>> messages = new ArrayList<>();
-        Map<String, Object> userMessage = new HashMap<>();
-        userMessage.put("role", "user");
-        userMessage.put("content", contents);
+
+        String imageBase64  = (String)questions.get("imageBase64");
+        String imageUrl = (String)questions.get("imageUrl");
+        if(imageUrl != null) {
+            imageUrl = imageUrl.trim();
+        }
+        
+
+        List<String> imageUrls = new ArrayList<>();
+        if(SimpleStringUtil.isNotEmpty(imageUrl)) {
+            imageUrls.add(imageUrl);
+        }
+        if(SimpleStringUtil.isNotEmpty(imageBase64)) {
+            imageUrls.add(imageBase64);
+        }
+ 
+        Map<String, Object> userMessage =MessageBuilder.buildInputImagesMessage(message,imageUrls.toArray(new String[]{}));
+       
         messages.add(userMessage);
 
 
@@ -378,11 +333,7 @@ public class ReactorController implements InitializingBean {
         extra_body.put("thinking_budget",81920);
         requestMap.put("extra_body",extra_body);
 
-//		{
-//				'enable_thinking': True,
-//				"thinking_budget": 81920},
-//		requestMap.put("max_tokens", 8192);
-//		requestMap.put("temperature", 0.7);
+ 
         // 用于累积完整的回答
         StringBuilder completeAnswer = new StringBuilder();
         Flux<List<ServerEvent>> flux = null;
@@ -481,18 +432,8 @@ public class ReactorController implements InitializingBean {
        
         // 构建消息历史列表，包含之前的会话记忆
         
-//        List<Map<String, Object>> messages = new ArrayList<>();
         List<Map<String, Object>> messages = new ArrayList<>();
-        Map<String, Object> userMessage = new HashMap<>();
-        userMessage.put("role", "user");
-        
-        List contents = new ArrayList<>();
-        Map contentData = null;
-        contentData = new LinkedHashMap();
-        contentData.put("text", message);
-
-        contents.add(contentData);
-        userMessage.put("content", contents);
+        Map<String, Object> userMessage = MessageBuilder.buildGenImageMessage(message);
         messages.add(userMessage);
         input.put("messages", messages);
         requestMap.put("input", input);
@@ -515,133 +456,115 @@ public class ReactorController implements InitializingBean {
     }
  
 	/**
-	 * 音频识别功能
-	 * https://bailian.console.aliyun.com/?spm=5176.29597918.J_SEsSjsNv72yRuRFS2VknO.2.74ba7b08ig5jxD&tab=doc#/doc/?type=model&url=2979031
-	 * @param request
-	 * @return
-	 */
-	public Flux<List<ServerEvent>> audioRecognition(MultipartFile audio,HttpServletRequest request) {
-		String selectedModel = request.getParameter("selectedModel");
-		String reset  = request.getParameter("reset");
-		if(reset != null && reset.equals("true")){
-			sessionMemory.clear();
-		}
-		String deepThink_  = request.getParameter("deepThink");
-		String message  = null;
-		message  = request.getParameter("message");
-		if(SimpleStringUtil.isEmpty( message)){
-			message = "介绍音频内容";
-		}
+     * 音频识别功能
+     * https://bailian.console.aliyun.com/?spm=5176.29597918.J_SEsSjsNv72yRuRFS2VknO.2.74ba7b08ig5jxD&tab=doc#/doc/?type=model&url=2979031
+     * @param audio 音频文件
+     * @param request HTTP请求
+     * @return
+     */
+    public Flux<List<ServerEvent>> audioFileRecognition(MultipartFile audio, HttpServletRequest request) {
+        String selectedModel = request.getParameter("selectedModel");
+        String reset = request.getParameter("reset");
+        if (reset != null && reset.equals("true")) {
+            sessionMemory.clear();
+        }
+        String deepThink_ = request.getParameter("deepThink");
+        String message = null;
+        message = request.getParameter("message");
+        if (SimpleStringUtil.isEmpty(message)) {
+            message = "介绍音频内容";
+        }
+    
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("model", "qwen3-asr-flash");
+    
+        // 构建消息历史列表，包含之前的会话记忆
+        List<Map<String, Object>> messages = new ArrayList<>(sessionMemory);
+    
+        // 添加当前用户消息
+        Map<String, Object> userMessage = MessageBuilder.buildAudioSystemMessage( message);
  
+        messages.add(userMessage);
+    
+        //直接设置音频url地址
+//        MessageBuilder.buildAudioMessage("https://dashscope.oss-cn-beijing.aliyuncs.com/audios/welcome.mp3");
+        //将音频文件转换为base64编码
+        userMessage = MessageBuilder.buildAudioMessage(new AudioDataBuilder() {
+            @Override
+            public String buildAudioBase64Data() {
+                String base64Audio = null;
+                if (audio != null && !audio.isEmpty()) {
+                    try {
+                        byte[] audioBytes = audio.getBytes();
+                        base64Audio = "data:" + audio.getContentType() + ";base64," +
+                                java.util.Base64.getEncoder().encodeToString(audioBytes);
+                    } catch (Exception e) {
+                        logger.error("音频文件转换base64失败", e);
+                    }
+                }
+                return base64Audio;
+            }
+        });
 
-// 		String datas = String.format("""
-//				messages = [
-//				    {
-//				        "role": "system",
-//				        "content": [
-//				            // 此处用于配置定制化识别的message
-//				            {"text": "%s"},
-//				        ]
-//				    },
-//				    {
-//				        "role": "user",
-//				        "content": [
-//				            {"audio": "https://dashscope.oss-cn-beijing.aliyuncs.com/audios/welcome.mp3"},
-//				        ]
-//				    }
-//				]
-//				""",  message);
-		 
-		
-		
-		Map<String, Object> requestMap = new HashMap<>();
-		requestMap.put("model", "qwen3-asr-flash");
-		
-		
-		// 构建消息历史列表，包含之前的会话记忆
-		List<Map<String, Object>> messages = new ArrayList<>(sessionMemory);
-		
-		// 添加当前用户消息
-		Map<String, Object> userMessage = new HashMap<>();
-		userMessage.put("role", "system");
-		List<Map> contents = new ArrayList<>();
-		Map contentData = new LinkedHashMap();
-		contentData.put("text", message);
-		contents.add(contentData);
-		userMessage.put("content", contents);
-		messages.add(userMessage);
-		
-		userMessage = new HashMap<>();
-		userMessage.put("role", "user");
-		contents = new ArrayList<>();
-		contentData = new LinkedHashMap();
-		contentData.put("audio", "https://dashscope.oss-cn-beijing.aliyuncs.com/audios/welcome.mp3");
-		contents.add(contentData);
-		userMessage.put("content", contents);
-		messages.add(userMessage);
-		Map<String,Object> input = new LinkedHashMap<>();
-		input.put("messages", messages);
-		requestMap.put("input", input);
-		requestMap.put("stream", true);
-		
-		Map asr_options = new LinkedHashMap();
-		asr_options.put("enable_itn",true);
-		Map parameters = new LinkedHashMap();
-		parameters.put("asr_options", asr_options);
+        messages.add(userMessage);
+        
+        Map<String, Object> input = new LinkedHashMap<>();
+        input.put("messages", messages);
+        requestMap.put("input", input);
+    
+        Map asr_options = new LinkedHashMap();
+        asr_options.put("enable_itn", true);
+        Map parameters = new LinkedHashMap();
+        parameters.put("asr_options", asr_options);
         parameters.put("incremental_output", true);
-//        "incremental_output": true,
-		requestMap.put("parameters", parameters);
-//		requestMap.put("max_tokens", 8192);
-		requestMap.put("result_format", "message");
-		// 用于累积完整的回答
-		StringBuilder completeAnswer = new StringBuilder();
-		Flux<List<ServerEvent>> flux = HttpRequestProxy.streamChatCompletionEvent("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",requestMap)
+        requestMap.put("parameters", parameters);
+        requestMap.put("result_format", "message");
+        
+        // 用于累积完整的回答
+        StringBuilder completeAnswer = new StringBuilder();
+        Flux<List<ServerEvent>> flux = HttpRequestProxy.streamChatCompletionEvent("qwenvlplus", 
+                "/api/v1/services/aigc/multimodal-generation/generation", requestMap)
                 .doOnNext(chunk -> {
-
-                    if(!chunk.isDone()) {
+                    if (!chunk.isDone()) {
                         logger.info(chunk.getData());
                     }
-
                 }).limitRate(5) // 限制请求速率
-					.buffer(3);
-		 
-		flux = flux.doOnNext(bufferedEvents -> {
-			// 处理模型响应并更新会话记忆
-			for(ServerEvent event : bufferedEvents) {
-				//答案前后都可以添加链接和标题
-				if(event.isFirst() || event.isDone()){
-					event.addExtendData("url","https://www.bbossgroups.com");
-					event.addExtendData("title","bboss官网");
-				}
-				event.getContentType();
-				if(!event.isDone() ) {
-					
-					// 累积回答内容
-					if(event.getData() != null) {
-						completeAnswer.append(event.getData());
-					}
-				} else  {
-					
-					if( completeAnswer.length() > 0) {
-						// 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-						Map<String, Object> assistantMessage = new HashMap<>();
-						assistantMessage.put("role", "assistant");
-						assistantMessage.put("content", completeAnswer.toString());
-						sessionMemory.add(assistantMessage);
-						
-						// 维护记忆窗口大小为20
-						if (sessionMemory.size() > 20) {
-							sessionMemory.remove(0);
-						}
-					}
-					
-					
-				}
-			}
-		});
-		
-		return flux;
-	}
+                .buffer(3);
+    
+        flux = flux.doOnNext(bufferedEvents -> {
+            // 处理模型响应并更新会话记忆
+            for (ServerEvent event : bufferedEvents) {
+                // 答案前后都可以添加链接和标题
+                if (event.isFirst() || event.isDone()) {
+                    event.addExtendData("url", "https://www.bbossgroups.com");
+                    event.addExtendData("title", "bboss官网");
+                }
+                event.getContentType();
+                if (!event.isDone()) {
+                    // 累积回答内容
+                    if (event.getData() != null) {
+                        completeAnswer.append(event.getData());
+                    }
+                } else {
+                    if (completeAnswer.length() > 0) {
+                        // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
+                        Map<String, Object> assistantMessage = new HashMap<>();
+                        assistantMessage.put("role", "assistant");
+                        assistantMessage.put("content", completeAnswer.toString());
+                        sessionMemory.add(assistantMessage);
+    
+                        // 维护记忆窗口大小为20
+                        if (sessionMemory.size() > 20) {
+                            sessionMemory.remove(0);
+                        }
+                    }
+                }
+            }
+        });
+    
+        return flux;
+    }
+ 
 
 
     /**

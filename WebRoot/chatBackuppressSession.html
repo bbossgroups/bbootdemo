@@ -53,7 +53,7 @@
             <option type="VL" value="qwenvlplus">QwenVL Plus（阿里百炼视觉）</option>
             <option type="VL" value="qwenvl-guiji">QwenVL32B（硅基流动视觉）</option>
             <option type="IMAGE" value="qwen-image">qwen-image-plus（阿里百炼）</option>
-            <option type="AUDIO" value="audio-model">语音识别模型</option>
+            <option type="AUDIO" value="audio-model">qwen3-asr-flash（语音识别）</option>
 
         </select>
     </div>
@@ -300,8 +300,30 @@
             const message = this.questionInput.value.trim();
            
             // if (!message || this.isStreaming) return;
-            if ((!message && this.modelType !== 'AUDIO') || this.isStreaming) return;
+            // if ((!message && this.modelType !== 'AUDIO') || this.isStreaming) return;
 
+            // 添加LLM模型的特殊验证
+            if (this.modelType === 'LLM' && !message) {
+                this.displayErrorMessage('请输入问题内容');
+                return;
+            }
+            
+            // 添加音频模型的特殊验证
+            else if (this.modelType === 'AUDIO' && !this.audioBlob) {
+                this.displayErrorMessage('请选择音频文件或录制音频');
+                return;
+            }
+
+            // 添加VL模型的特殊验证
+            else if (this.modelType === 'VL') {
+                const hasImageUrl = this.imageUrlInput.value.trim();
+                const hasImageUpload = this.imageBase64Data;
+                if (!hasImageUrl && !hasImageUpload) {
+                    this.displayErrorMessage('请选择图片或输入图片链接');
+                    return;
+                }
+            }
+            
             const reset = this.resetCheckbox.checked;
             const deepThink = this.deepThinkCheckbox.checked;
 
@@ -328,7 +350,7 @@
             //千问图片生成服务地址
             const imageurl = `/demoproject/reactor/genImageByqwenimage.api`;
             // 音频识别服务地址
-            const audiourl = `/demoproject/reactor/audioRecognition.api`;
+            const audiourl = `/demoproject/reactor/audioFileRecognition.api`;
             let url;
 
             switch(this.modelType) {
@@ -404,6 +426,9 @@
                 .then(response => {
                     // 移除正在输入指示器
                     this.removeTypingIndicator(indicatorId);
+                    if(this.modelType === 'AUDIO'){
+                        this.clearAudio();
+                    }
 
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
