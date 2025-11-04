@@ -50,10 +50,12 @@
         <select id="model-select">
             <option type="LLM" value="deepseek" selected>DeepSeek-LLM</option>
             <option type="LLM" value="guiji">硅基流动-LLM</option>
-            <option type="VL" value="qwenvlplus">QwenVL Plus（阿里百炼视觉）</option>
-            <option type="VL" value="qwenvl-guiji">QwenVL32B（硅基流动视觉）</option>
-            <option type="IMAGE" value="qwen-image">qwen-image-plus（阿里百炼）</option>
-            <option type="AUDIO" value="audio-model">qwen3-asr-flash（语音识别）</option>
+            <option type="VL" value="qwenvlplus">QwenVL Plus（阿里百炼图片识别）</option>
+            <option type="VL" value="qwenvl-guiji">QwenVL32B（硅基流动图片识别）</option>
+            <option type="IMAGE" value="qwen-image">qwen-image-plus（百炼图片生成）</option>
+            <option type="AUDIO" value="audio-model">qwen3-asr-flash（百炼语音识别）</option>
+            <option type="TTS" value="qwen-tts">qwen3-tts-flash（百炼语音生成）</option>
+
 
         </select>
     </div>
@@ -351,6 +353,9 @@
             const imageurl = `/demoproject/reactor/genImageByqwenimage.api`;
             // 音频识别服务地址
             const audiourl = `/demoproject/reactor/audioFileRecognition.api`;
+
+            // 千问语音生成服务地址
+            const ttsurl = `/demoproject/reactor/genAudioByqwentts.api`;
             let url;
 
             switch(this.modelType) {
@@ -365,6 +370,9 @@
                     break;
                 case 'AUDIO':
                     url = audiourl;
+                    break;
+                case 'TTS':
+                    url = ttsurl;
                     break;
                 default:
                     url = deepseekurl;
@@ -447,8 +455,47 @@
                                 img.className = 'generated-image';
                                 img.alt = '生成的图片';
                                 botMessageElement.appendChild(img);
+
+                                // 添加下载链接
+                                const downloadLink = document.createElement('a');
+                                downloadLink.href = data.imageUrl;
+                                downloadLink.download = 'generated-image.png';  // 默认文件名
+                                downloadLink.textContent = '下载图片';
+                                downloadLink.className = 'download-link';
+                                downloadLink.target = '_blank';
+                                botMessageElement.appendChild(downloadLink);
                             } else {
                                 botMessageElement.textContent = '图片生成失败';
+                            }
+
+                            this.scrollToBottom();
+                        });
+                    }
+                    // 特殊处理TTS模型的响应
+                    else if (this.modelType === 'TTS') {
+                        return response.json().then(data => {
+                            this.isStreaming = false;
+                            let botMessageElement = this.createBotMessageElement();
+
+                            // 显示生成的音频
+                            if (data && data.audioUrl) {
+                                const audioContainer = document.createElement('div');
+
+                                const audio = document.createElement('audio');
+                                audio.src = data.audioUrl;
+                                audio.controls = true;
+                                audioContainer.appendChild(audio);
+
+                                const downloadLink = document.createElement('a');
+                                downloadLink.href = data.audioUrl;
+                                downloadLink.download = 'tts-audio.wav';
+                                downloadLink.textContent = '下载音频';
+                                downloadLink.target = '_blank';
+                                audioContainer.appendChild(downloadLink);
+
+                                botMessageElement.appendChild(audioContainer);
+                            } else {
+                                botMessageElement.textContent = '语音生成失败';
                             }
 
                             this.scrollToBottom();
@@ -551,7 +598,7 @@
                                         for (let i = 0; i < jsonData.length; i++) {
                                             const lineData = jsonData[i];
                                             if(lineData.first && lineData.extendDatas){
-                                                let title = lineData.extendDatas["title"];
+                                                let title = lineData.extendDatas["title"]+"(验证在问题答案前嵌入附加材料信息)";
                                                 let url = lineData.extendDatas["url"];
                                                 accumulatedContent += `<a href="${url}" target="_blank">${title}</a><br><br>`;
                                                 //将链接作为一个超链接追加到答案的开头
@@ -587,7 +634,7 @@
                                                 finishReason = null;
                                             }
                                             if(lineData.done && lineData.extendDatas){
-                                                let title = lineData.extendDatas["title"];
+                                                let title = lineData.extendDatas["title"]+"(验证在问题答案后嵌入附加材料信息)";
                                                 let url = lineData.extendDatas["url"];
                                                 //将链接作为一个超链接追加到答案的末尾
                                                 this.updateBotMessage(botMessageElement, accumulatedContent +`<br><br><a href="${url}" target="_blank">${title}</a>`);

@@ -17,6 +17,7 @@ package org.frameworkset.web.react;
 
 import com.frameworkset.util.SimpleStringUtil;
 import org.frameworkset.spi.InitializingBean;
+import org.frameworkset.spi.ai.model.AudioEvent;
 import org.frameworkset.spi.ai.model.ImageEvent;
 import org.frameworkset.spi.ai.model.ServerEvent;
 import org.frameworkset.spi.ai.util.AudioDataBuilder;
@@ -25,7 +26,6 @@ import org.frameworkset.spi.remote.http.HttpRequestProxy;
 import org.frameworkset.util.annotations.RequestBody;
 import org.frameworkset.util.annotations.ResponseBody;
 import org.frameworkset.web.multipart.MultipartFile;
-import org.frameworkset.web.multipart.MultipartHttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -79,7 +79,7 @@ public class ReactorController implements InitializingBean {
         requestMap.put("stream", true);
         requestMap.put("max_tokens", 8192);
         requestMap.put("temperature", 0.7);
-        return HttpRequestProxy.streamChatCompletion("/chat/completions",requestMap);
+        return HttpRequestProxy.streamChatCompletion("deepseek","/chat/completions",requestMap);
 //                .doOnSubscribe(subscription -> logger.info("开始订阅流..."))
 //                .doOnNext(chunk -> System.out.print(chunk))
 //                .doOnComplete(() -> logger.info("\n=== 流完成 ==="))
@@ -108,7 +108,7 @@ public class ReactorController implements InitializingBean {
         requestMap.put("stream", true);
         requestMap.put("max_tokens", 8192);
         requestMap.put("temperature", 0.7);
-        return HttpRequestProxy.streamChatCompletion("/chat/completions",requestMap).limitRate(5) // 限制请求速率
+        return HttpRequestProxy.streamChatCompletion("deepseek","/chat/completions",requestMap).limitRate(5) // 限制请求速率
                 .buffer(3) ;   // 每3个元素缓冲一次
 //                .doOnSubscribe(subscription -> logger.info("开始订阅流..."))
 //                .doOnNext(chunk -> System.out.print(chunk))
@@ -139,7 +139,7 @@ public class ReactorController implements InitializingBean {
         requestMap.put("stream", true);
         requestMap.put("max_tokens", 8192);
         requestMap.put("temperature", 0.7);
-        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent("/chat/completions",requestMap);
+        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent("deepseek","/chat/completions",requestMap);
 
         return flux.doOnNext(chunk -> {
             if(!chunk.isDone())
@@ -171,7 +171,7 @@ public class ReactorController implements InitializingBean {
         requestMap.put("stream", true);
         requestMap.put("max_tokens", 8192);
         requestMap.put("temperature", 0.7);
-        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent("/chat/completions",requestMap);
+        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent("deepseek","/chat/completions",requestMap);
 
         return flux.doOnNext(chunk -> {
             if(!chunk.isDone()) {
@@ -220,6 +220,7 @@ public class ReactorController implements InitializingBean {
         
         // 添加当前用户消息
         Map<String, Object> userMessage = MessageBuilder.buildUserMessage( message);
+        sessionMemory.add(userMessage);
         messages.add(userMessage);
     
         requestMap.put("messages", messages);
@@ -317,7 +318,6 @@ public class ReactorController implements InitializingBean {
         }
  
         Map<String, Object> userMessage =MessageBuilder.buildInputImagesMessage(message,imageUrls.toArray(new String[]{}));
-       
         messages.add(userMessage);
 
 
@@ -364,9 +364,7 @@ public class ReactorController implements InitializingBean {
                             
                             if( completeAnswer.length() > 0) {
                                 // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                                Map<String, Object> assistantMessage = new HashMap<>();
-                                assistantMessage.put("role", "assistant");
-                                assistantMessage.put("content", completeAnswer.toString());
+                                Map<String, Object> assistantMessage = MessageBuilder.buildAssistantMessage(completeAnswer.toString());
                                 sessionMemory.add(assistantMessage);
 
                                 // 维护记忆窗口大小为20
@@ -442,7 +440,7 @@ public class ReactorController implements InitializingBean {
         Map parameters = new LinkedHashMap();
         parameters.put("negative_prompt","");
         parameters.put("prompt_extend",true);
-        parameters.put("watermark",true);
+        parameters.put("watermark",false);
         parameters.put("size","1328*1328");
         requestMap.put("parameters", parameters);
 
@@ -483,7 +481,6 @@ public class ReactorController implements InitializingBean {
     
         // 添加当前用户消息
         Map<String, Object> userMessage = MessageBuilder.buildAudioSystemMessage( message);
- 
         messages.add(userMessage);
     
         //直接设置音频url地址
@@ -506,6 +503,7 @@ public class ReactorController implements InitializingBean {
             }
         });
 
+//        sessionMemory.add(userMessage);
         messages.add(userMessage);
         
         Map<String, Object> input = new LinkedHashMap<>();
@@ -548,9 +546,7 @@ public class ReactorController implements InitializingBean {
                 } else {
                     if (completeAnswer.length() > 0) {
                         // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                        Map<String, Object> assistantMessage = new HashMap<>();
-                        assistantMessage.put("role", "assistant");
-                        assistantMessage.put("content", completeAnswer.toString());
+                        Map<String, Object> assistantMessage = MessageBuilder.buildAssistantMessage(completeAnswer.toString());
                         sessionMemory.add(assistantMessage);
     
                         // 维护记忆窗口大小为20
@@ -564,8 +560,44 @@ public class ReactorController implements InitializingBean {
     
         return flux;
     }
- 
 
+    /**
+     * 音频生成服务
+     http://127.0.0.1/demoproject/reactor/genAudioByqwentts.api
+     * @param questions
+     * @return
+     * @throws InterruptedException
+     */
+    public @ResponseBody AudioEvent genAudioByqwentts(@RequestBody Map<String,Object> questions) throws InterruptedException {
+//        String selectedModel = (String)questions.get("selectedModel");
+
+        String message  = null;
+        message = questions != null?(String)questions.get("message"):null;
+        if(SimpleStringUtil.isEmpty( message)){
+            message = "诗词朗诵：窗前明月光；疑似地上霜；举头望明月；低头思故乡。";
+        }
+
+
+
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("model", "qwen3-tts-flash");
+
+
+
+
+        Map<String,Object> inputVoice = new LinkedHashMap();
+        inputVoice.put("text",message);
+        inputVoice.put("voice","Cherry");
+        inputVoice.put("language_type","Chinese");
+
+        requestMap.put("input",inputVoice);
+        AudioEvent audioEvent = HttpRequestProxy.multimodalAudioGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",requestMap);
+
+
+
+//
+        return audioEvent;
+    }
 
     /**
      * Invoked by a BeanFactory after it has set all bean properties supplied
