@@ -212,7 +212,13 @@ public class ReactorController implements InitializingBean {
             
         }
         else {
-            requestMap.put("model", "Qwen/Qwen3-Next-80B-A3B-Instruct");//指定模型
+            selectedModel = "qwenvlplus";
+//            requestMap.put("model", "Qwen/Qwen3-Next-80B-A3B-Instruct");//指定硅基模型
+//            requestMap.put("model", "qwen-plus");//指定百炼千问模型
+            requestMap.put("model", "qwen3-max");//指定百炼千问模型
+
+            
+            
         }
     
         // 构建消息历史列表，包含之前的会话记忆
@@ -227,7 +233,8 @@ public class ReactorController implements InitializingBean {
         requestMap.put("stream", true);
         requestMap.put("max_tokens", 8192);
         requestMap.put("temperature", 0.7);
-        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent(selectedModel,"/chat/completions",requestMap);
+        String completionsUrl = selectedModel.equals("deepseek")? "/chat/completions":"/compatible-mode/v1/chat/completions";
+        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent(selectedModel,completionsUrl,requestMap);
     
         // 用于累积完整的回答
         StringBuilder completeAnswer = new StringBuilder();
@@ -302,7 +309,7 @@ public class ReactorController implements InitializingBean {
         // 构建消息历史列表，包含之前的会话记忆
         List<Map<String, Object>> messages = new ArrayList<>(sessionMemory);
 
-        String imageBase64  = (String)questions.get("imageBase64");
+        List<String> imagesBase64  = (List)questions.get("imagesBase64");
         String imageUrl = (String)questions.get("imageUrl");
         if(imageUrl != null) {
             imageUrl = imageUrl.trim();
@@ -313,8 +320,9 @@ public class ReactorController implements InitializingBean {
         if(SimpleStringUtil.isNotEmpty(imageUrl)) {
             imageUrls.add(imageUrl);
         }
-        if(SimpleStringUtil.isNotEmpty(imageBase64)) {
-            imageUrls.add(imageBase64);
+        if(SimpleStringUtil.isNotEmpty(imagesBase64)) {
+            for(String tmp:imagesBase64)
+            imageUrls.add(tmp);
         }
  
         Map<String, Object> userMessage =MessageBuilder.buildInputImagesMessage(message,imageUrls.toArray(new String[]{}));
@@ -574,7 +582,7 @@ public class ReactorController implements InitializingBean {
         String message  = null;
         message = questions != null?(String)questions.get("message"):null;
         if(SimpleStringUtil.isEmpty( message)){
-            message = "诗词朗诵：窗前明月光；疑似地上霜；举头望明月；低头思故乡。";
+            message = "诗歌朗诵：床前明月光；疑似地上霜；举头望明月；低头思故乡。";
         }
 
 

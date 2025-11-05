@@ -20,19 +20,21 @@
 <div id="chat-container"></div>
 <!-- 新增图片上传区域 -->
 <!-- 优化后的图片上传区域 -->
+<!-- 修改图片上传区域 -->
 <div id="upload-container" style="display: none;">
     <div class="upload-controls">
         <label for="file-upload" class="upload-label">选择图片</label>
-        <input id="file-upload" type="file" accept="image/*" />
-        <button id="clear-image-btn" class="clear-btn">清除图片</button>
+        <input id="file-upload" type="file" accept="image/*" multiple /> <!-- 添加multiple属性 -->
+        <button id="clear-images-btn" class="clear-btn">清除所有图片</button>
     </div>
-    <div class="image-preview-container">
-        <img id="image-preview" alt="图片预览" style="display: none"/>
+    <div class="image-preview-container" id="image-preview-container">
+        <!-- 多图片预览将在这里动态添加 -->
     </div>
     <div id="image-input-container" class="image-url-container">
         <input type="text" id="image-url-input" placeholder="请输入图片地址..." />
     </div>
 </div>
+
 
 <!-- 在 #input-container 中添加音频输入容器 -->
 <div id="audio-input-container" style="display: none; flex: 1; align-items: center; gap: 10px;">
@@ -49,7 +51,7 @@
         <label for="model-select">选择模型:</label>
         <select id="model-select">
             <option type="LLM" value="deepseek" selected>DeepSeek-LLM</option>
-            <option type="LLM" value="guiji">硅基流动-LLM</option>
+            <option type="LLM" value="guiji">通义千问-LLM</option>
             <option type="VL" value="qwenvlplus">QwenVL Plus（阿里百炼图片识别）</option>
             <option type="VL" value="qwenvl-guiji">QwenVL32B（硅基流动图片识别）</option>
             <option type="IMAGE" value="qwen-image">qwen-image-plus（百炼图片生成）</option>
@@ -98,11 +100,13 @@
             this.imageUrlInput = document.getElementById('image-url-input');
 
             // 新增图片相关属性
+            // 修改图片相关属性
             this.fileUpload = document.getElementById('file-upload');
-            this.imagePreview = document.getElementById('image-preview');
-            this.clearImageBtn = document.getElementById('clear-image-btn');
-            // 添加用于存储图片Base64数据的属性
-            this.imageBase64Data = null;
+            this.imagePreviewContainer = document.getElementById('image-preview-container'); // 修改为容器
+            this.clearImagesBtn = document.getElementById('clear-images-btn'); // 修改为清除所有图片
+
+            // 添加用于存储多张图片Base64数据的属性
+            this.imagesBase64Data = []; // 修改为数组
             
             
             // 在 constructor 中添加新属性
@@ -148,8 +152,9 @@
             this.modelSelect.addEventListener('change', () => this.toggleImageInput());
 
             // 新增图片上传相关事件监听
-            this.fileUpload.addEventListener('change', (e) => this.handleImageUpload(e));
-            this.clearImageBtn.addEventListener('click', () => this.clearImage());
+            // 修改图片上传相关事件监听
+            this.fileUpload.addEventListener('change', (e) => this.handleImagesUpload(e));
+            this.clearImagesBtn.addEventListener('click', () => this.clearAllImages());
 
             // 添加音频相关事件监听
             this.modelSelect.addEventListener('change', () => this.toggleAudioInput());
@@ -257,27 +262,54 @@
         }
 
 
-        handleImageUpload(event) {
-            const file = event.target.files[0];
-            if (file && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    this.imagePreview.src = e.target.result;
-                    this.imagePreview.style.display = 'block';
-                    // 保存图片的Base64数据
-                    this.imageBase64Data = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            } else {
-                this.clearImage();
-            }
+        handleImagesUpload(event) {
+            const files = Array.from(event.target.files);
+            this.imagesBase64Data = []; // 清空之前的图片数据
+
+            // 清空预览容器
+            this.imagePreviewContainer.innerHTML = '';
+
+            files.forEach((file, index) => {
+                if (file && file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        // 保存图片的Base64数据
+                        this.imagesBase64Data.push(e.target.result);
+
+                        // 创建预览元素
+                        const previewWrapper = document.createElement('div');
+                        previewWrapper.className = 'image-preview-wrapper';
+
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.alt = `预览图片 ${index + 1}`;
+                        img.className = 'image-preview-item';
+
+                        const removeBtn = document.createElement('button');
+                        removeBtn.textContent = '×';
+                        removeBtn.className = 'remove-image-btn';
+                        removeBtn.onclick = () => this.removeImage(index, previewWrapper);
+
+                        previewWrapper.appendChild(img);
+                        previewWrapper.appendChild(removeBtn);
+                        this.imagePreviewContainer.appendChild(previewWrapper);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
         }
 
-        clearImage() {
+        removeImage(index, element) {
+            // 从数组中移除对应图片数据
+            this.imagesBase64Data.splice(index, 1);
+            // 从DOM中移除预览元素
+            element.remove();
+        }
+
+        clearAllImages() {
             this.fileUpload.value = '';
-            this.imagePreview.style.display = 'none';
-            this.imagePreview.src = '';
-            this.imageBase64Data = null;
+            this.imagePreviewContainer.innerHTML = '';
+            this.imagesBase64Data = [];
         }
 
         toggleImageInput() {
@@ -319,7 +351,7 @@
             // 添加VL模型的特殊验证
             else if (this.modelType === 'VL') {
                 const hasImageUrl = this.imageUrlInput.value.trim();
-                const hasImageUpload = this.imageBase64Data;
+                const hasImageUpload = this.imagesBase64Data.length > 0;
                 if (!hasImageUrl && !hasImageUpload) {
                     this.displayErrorMessage('请选择图片或输入图片链接');
                     return;
@@ -399,12 +431,12 @@
                     requestBody.imageUrl = this.imageUrlInput.value.trim();
                 }
                 // 如果是上传图片模式且有上传图片，则使用base64数据
-                else if (this.imageBase64Data) {
-                    requestBody.imageBase64 = this.imageBase64Data;
+                else if (this.imagesBase64Data.length > 0) {
+                    requestBody.imagesBase64 = this.imagesBase64Data; // 发送所有图片
                 }
             }
 
-            this.clearImage();
+            this.clearAllImages();
             let fetchParams = {};
             if (this.modelType === 'AUDIO' && this.audioBlob) {
                 const formData = new FormData();
@@ -456,14 +488,7 @@
                                 img.alt = '生成的图片';
                                 botMessageElement.appendChild(img);
 
-                                // 添加下载链接
-                                const downloadLink = document.createElement('a');
-                                downloadLink.href = data.imageUrl;
-                                downloadLink.download = 'generated-image.png';  // 默认文件名
-                                downloadLink.textContent = '下载图片';
-                                downloadLink.className = 'download-link';
-                                downloadLink.target = '_blank';
-                                botMessageElement.appendChild(downloadLink);
+                               
                             } else {
                                 botMessageElement.textContent = '图片生成失败';
                             }
@@ -701,6 +726,8 @@
             this.chatContainer.appendChild(messageDiv);
             this.scrollToBottom();
         }
+
+        // 修改 displayUserMessage 方法以显示多张图片
         displayUserMessage(content) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message user-message';
@@ -710,24 +737,22 @@
                 const textDiv = document.createElement('div');
                 textDiv.textContent = content;
                 messageDiv.appendChild(textDiv);
-
             }
 
-            // 如果有预览图片，则添加图片
-            if (this.imagePreview.style.display !== 'none') {
-                const img = document.createElement('img');
-                img.src = this.imagePreview.src;
-                img.alt = "用户上传的图片";
-                messageDiv.appendChild(img);
-
+            // 如果有预览图片，则添加所有图片
+            if (this.imagesBase64Data.length > 0) {
+                this.imagesBase64Data.forEach((imgSrc, index) => {
+                    const img = document.createElement('img');
+                    img.src = imgSrc;
+                    img.alt = `用户上传的图片 ${index + 1}`;
+                    messageDiv.appendChild(img);
+                });
             }
-
 
             this.chatContainer.appendChild(messageDiv);
             this.scrollToBottom();
-
-            // 注意：不清除图片在这里，而是在请求发送完成后清除
         }
+        
 
 
         createBotMessageElement() {
