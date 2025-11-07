@@ -57,7 +57,7 @@
             <option type="IMAGE" value="qwen-image">qwen-image-plus（百炼图片生成）</option>
             <option type="AUDIO" value="audio-model">qwen3-asr-flash（百炼语音识别）</option>
             <option type="TTS" value="qwen-tts">qwen3-tts-flash（百炼语音生成）</option>
-
+            <option type="VIDEO" value="qwen-video">wan2.5-t2v-preview（百炼视频生成）</option>
 
         </select>
     </div>
@@ -77,7 +77,14 @@
     <button id="send-btn">发送</button>
     <button id="cancel-btn">取消</button>
 </div>
-
+<!-- 视频任务查询区域 -->
+<div id="video-task-container" style="display: none; margin-top: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <input type="text" id="task-id-input" placeholder="请输入视频生成任务ID..." style="flex: 1; padding: 5px;" />
+        <button id="query-task-btn">查询任务状态</button>
+    </div>
+    <div id="task-result-container" style="margin-top: 10px;"></div>
+</div>
 
 <script>
     class ReactiveChatClient {
@@ -121,6 +128,12 @@
             this.mediaRecorder = null;
             this.audioChunks = [];
             this.audioBlob = null;
+
+            // 在 constructor 中添加新属性
+            this.videoTaskContainer = document.getElementById('video-task-container');
+            this.taskIdInput = document.getElementById('task-id-input');
+            this.queryTaskBtn = document.getElementById('query-task-btn');
+            this.taskResultContainer = document.getElementById('task-result-container');
             
             // 在 CONTENT 和 REASONING_CONTENT 后面添加
             this.AUDIO_CONTENT = 2;
@@ -156,12 +169,18 @@
             this.fileUpload.addEventListener('change', (e) => this.handleImagesUpload(e));
             this.clearImagesBtn.addEventListener('click', () => this.clearAllImages());
 
+            
             // 添加音频相关事件监听
             this.modelSelect.addEventListener('change', () => this.toggleAudioInput());
             this.recordBtn.addEventListener('click', () => this.toggleRecording());
             this.audioFileInput.addEventListener('change', (e) => this.handleAudioFileUpload(e));
             this.clearAudioBtn.addEventListener('click', () => this.clearAudio());
-        
+
+
+
+// 在 initEventListeners 方法中添加事件监听
+            this.modelSelect.addEventListener('change', () => this.toggleVideoInput());
+            this.queryTaskBtn.addEventListener('click', () => this.queryVideoTask());
         }
         
         
@@ -189,7 +208,97 @@
                 this.imageUrlInput.value = '';
             }
         }
-        
+
+        // 在 toggleAudioInput 方法后添加
+        toggleVideoInput() {
+            this.modelType = this.modelSelect.options[this.modelSelect.selectedIndex].getAttribute('type');
+
+            // 隐藏所有特殊输入区域
+            this.uploadContainer.style.display = 'none';
+            this.audioInputContainer.style.display = 'none';
+            this.videoTaskContainer.style.display = 'none';
+
+            // 根据模型类型显示对应区域
+            if (this.modelType === 'VL') {
+                this.uploadContainer.style.display = 'block';
+                this.questionInput.style.flex = 'unset';
+                this.questionInput.style.width = '200px';
+            } else if (this.modelType === 'AUDIO') {
+                this.audioInputContainer.style.display = 'flex';
+                this.questionInput.style.flex = 'unset';
+                this.questionInput.style.width = '200px';
+            } else if (this.modelType === 'VIDEO') {
+                this.videoTaskContainer.style.display = 'block';
+                this.questionInput.style.flex = 'unset';
+                this.questionInput.style.width = '200px';
+            } else {
+                this.questionInput.style.flex = '1';
+                this.questionInput.style.width = '';
+                this.imageUrlInput.value = '';
+            }
+        }
+
+// 添加视频任务查询方法
+        queryVideoTask() {
+            const taskId = this.taskIdInput.value.trim();
+            if (!taskId) {
+                alert('请输入任务ID');
+                return;
+            }
+
+            const url = 'reactor/getVideoTaskResult.api';
+            const requestBody = { taskId: taskId };
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    this.displayTaskResult(data);
+                })
+                .catch(error => {
+                    console.error('查询任务失败:', error);
+                    this.displayErrorMessage('查询任务失败: ' + error.message);
+                });
+        }
+
+// 显示任务查询结果
+        displayTaskResult(data) {
+            this.taskResultContainer.innerHTML = '';
+
+            if (data.error) {
+                this.taskResultContainer.innerHTML = `<div style="color: red;">错误: ${data.error}</div>`;
+                return;
+            }
+
+            const status = data.taskStatus ? data.taskStatus : '未知';
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'task-result';
+
+            let content = `<div><strong>任务ID:</strong> ${data.taskId || 'N/A'}</div>`;
+            content += `<div><strong>任务状态:</strong> ${status}</div>`;
+
+            if (data.videoUrl ) {
+                content += `            <div style="margin-top: 10px;">
+                <strong>生成的视频:</strong><br/>
+                <video controls style="max-width: 100%; height: auto; margin-top: 5px;">
+                    <source src="${data.videoUrl}" type="video/mp4">
+                    您的浏览器不支持视频播放。
+                </video>
+                <div style="margin-top: 5px;">
+                    <a href="${data.videoUrl}" target="_blank" download>下载视频</a>
+                </div>
+            </div>
+        `;
+            }  
+
+            resultDiv.innerHTML = content;
+            this.taskResultContainer.appendChild(resultDiv);
+        }
         toggleRecording() {
             if (!this.mediaRecorder) {
                 // 开始录音
@@ -406,6 +515,9 @@
                 case 'TTS':
                     url = ttsurl;
                     break;
+                case 'VIDEO':
+                    url = `reactor/submitVideoByqwenwan.api`;
+                    break;
                 default:
                     url = deepseekurl;
             }
@@ -521,6 +633,29 @@
                                 botMessageElement.appendChild(audioContainer);
                             } else {
                                 botMessageElement.textContent = '语音生成失败';
+                            }
+
+                            this.scrollToBottom();
+                        });
+                    }
+                    else if (this.modelType === 'VIDEO') {
+                        return response.json().then(data => {
+                            this.isStreaming = false;
+                            let botMessageElement = this.createBotMessageElement();
+
+                            // 显示任务信息
+                            if (data && data.taskId) {
+                                const taskInfo = document.createElement('div');
+                                taskInfo.innerHTML = `                <div><strong>视频生成任务已提交</strong></div>
+                <div><strong>任务ID:</strong> ${data.taskId}</div>
+                <div><strong>状态:</strong> ${data.taskStatus ? data.taskStatus: '提交中'}</div>
+                ${data && data.message ? `<div><strong>信息:</strong> ${data.message}</div>` : ''}                <div style="margin-top: 10px;">
+                    <button onclick="document.getElementById('task-id-input').value='${data.taskId}';document.getElementById('query-task-btn').click()">查询任务状态</button>
+                </div>
+            `;
+                                botMessageElement.appendChild(taskInfo);
+                            } else {
+                                botMessageElement.textContent = '视频生成任务提交失败';
                             }
 
                             this.scrollToBottom();

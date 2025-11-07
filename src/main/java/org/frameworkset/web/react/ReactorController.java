@@ -607,6 +607,92 @@ public class ReactorController implements InitializingBean {
         return audioEvent;
     }
 
+
+    /**
+     * 提交视频生成请求服务
+     http://127.0.0.1/demoproject/reactor/submitVideoByqwenwan.api
+     * @param questions
+     * @return
+     * @throws InterruptedException
+     */
+    public @ResponseBody Map submitVideoByqwenwan(@RequestBody Map<String,Object> questions) throws InterruptedException {
+//        String selectedModel = (String)questions.get("selectedModel");
+
+        String message  = null;
+        message = questions != null?(String)questions.get("message"):null;
+        if(SimpleStringUtil.isEmpty( message)){
+            message = "一幅史诗级可爱的场景。一只小巧可爱的卡通小猫将军，身穿细节精致的金色盔甲，头戴一个稍大的头盔，勇敢地站在悬崖上。他骑着一匹虽小但英勇的战马，说：”青海长云暗雪山，孤城遥望玉门关。黄沙百战穿金甲，不破楼兰终不还。“。悬崖下方，一支由老鼠组成的、数量庞大、无穷无尽的军队正带着临时制作的武器向前冲锋。这是一个戏剧性的、大规模的战斗场景，灵感来自中国古代的战争史诗。远处的雪山上空，天空乌云密布。整体氛围是“可爱”与“霸气”的搞笑和史诗般的融合。";
+        }
+
+
+
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("model", "wan2.5-t2v-preview");
+
+
+
+
+        Map<String,Object> inputVoice = new LinkedHashMap();
+        inputVoice.put("prompt",message);
+//        inputVoice.put("audio_url","https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250923/hbiayh/%E4%BB%8E%E5%86%9B%E8%A1%8C.mp3");
+        inputVoice.put("language_type","Chinese");
+
+        requestMap.put("input",inputVoice);
+
+        /**
+         * "parameters": {
+         *         "size": "832*480",
+         *         "prompt_extend": true,
+         *         "duration": 10,
+         *         "audio": true
+         *     }
+         */
+        Map<String,Object> parameters = new LinkedHashMap();
+        parameters.put("size","832*480");
+        parameters.put("prompt_extend",true);
+        parameters.put("duration",10);
+        parameters.put("audio",true);
+
+        requestMap.put("parameters",parameters);
+        Map header = new LinkedHashMap();
+        header.put("X-DashScope-Async","enable");
+        Map taskInfo = HttpRequestProxy.sendJsonBody("qwenvlplus",requestMap,"/api/v1/services/aigc/video-generation/video-synthesis",header,Map.class);
+
+
+        Map<String, Object> result = new HashMap<>();
+        Map output = (Map)taskInfo.get("output");
+        result.put("taskId",output.get("task_id"));
+        result.put("taskStatus",output.get("task_status"));
+        result.put("requestId",taskInfo.get("request_id"));
+        return result;
+    }
+
+    /**
+     * 查询视频生成任务执行结果服务
+     http://127.0.0.1/demoproject/reactor/submitVideoByqwenwan.api
+     * @param questions
+     * @return
+     * @throws InterruptedException
+     */
+    public @ResponseBody Map getVideoTaskResult(@RequestBody Map<String,Object> questions) throws InterruptedException {
+        Map<String, Object> result = new HashMap<>();
+        String taskId = questions != null?(String)questions.get("taskId"):null;
+        if(SimpleStringUtil.isEmpty( taskId)){
+            result.put("error","taskId为空");
+            return result;
+        }
+ 
+        String requestUrl = "/api/v1/tasks/"+taskId;
+        Map taskInfo = HttpRequestProxy.httpGetforObject("qwenvlplus",requestUrl,Map.class);
+        Map output = (Map)taskInfo.get("output");
+        result.put("taskId",output.get("task_id"));
+        result.put("taskStatus",output.get("task_status"));
+        result.put("videoUrl",output.get("video_url"));
+        result.put("requestId",taskInfo.get("request_id"));
+        
+        return result;
+    }
+
     /**
      * Invoked by a BeanFactory after it has set all bean properties supplied
      * (and satisfied BeanFactoryAware and ApplicationContextAware).
