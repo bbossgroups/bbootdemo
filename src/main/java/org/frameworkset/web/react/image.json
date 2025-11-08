@@ -1,0 +1,28 @@
+{
+  "output": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "message": {
+          "content": [
+            {
+              "image": "https://dashscope-result-wlcb-acdr-1.oss-cn-wulanchabu-acdr-1.aliyuncs.com/7d/73/20251029/d81d59b0/08647448-22e9-4f76-82c9-fb5db8f92dba-1.png?Expires=1762314433&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=3Dn9M4z7tWctSWQ8Cio6tf8Wb1w%3D"
+            }
+          ],
+          "role": "assistant"
+        }
+      }
+    ],
+    "task_metric": {
+      "FAILED": 0,
+      "SUCCEEDED": 1,
+      "TOTAL": 1
+    }
+  },
+  "usage": {
+    "height": 1328,
+    "image_count": 1,
+    "width": 1328
+  },
+  "request_id": "08647448-22e9-4f76-82c9-fb5db8f92dba"
+}

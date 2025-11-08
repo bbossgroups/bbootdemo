@@ -1,135 +1,207 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <!-- ... 原有头部内容 ... -->
-</head>
-<body>
-    <!-- ... 原有HTML内容 ... -->
+<!-- 在 #model-select 的 option 列表中添加 -->
+<option type="VIDEO" value="qwen-video">wan2.5-t2v-preview（百炼视频生成）</option>
+<!-- 视频任务查询区域 -->
+<div id="video-task-container" style="display: none; margin-top: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <input type="text" id="task-id-input" placeholder="请输入视频生成任务ID..." style="flex: 1; padding: 5px;" />
+        <button id="query-task-btn">查询任务状态</button>
+    </div>
+    <div id="task-result-container" style="margin-top: 10px;"></div>
+</div>
 
-    <script>
-        class ReactiveChatClient {
-            constructor() {
-                // ... 原有属性 ...
-                this.fileUpload = document.getElementById('file-upload');
-                this.imagePreview = document.getElementById('image-preview');
-                this.clearImageBtn = document.getElementById('clear-image-btn');
-                
-                // 添加用于存储图片Base64数据的属性
-                this.imageBase64Data = null;
-                
-                // ... 原有初始化 ...
-            }
+/**
+ * 视频生成服务
+ * http://127.0.0.1/demoproject/reactor/genVideoByqwenwan.api
+ * @param questions
+ * @return
+ * @throws InterruptedException
+ */
+public @ResponseBody Map genVideoByqwenwan(@RequestBody Map<String,Object> questions) throws InterruptedException {
+    String message = questions != null ? (String)questions.get("message") : null;
+    if(SimpleStringUtil.isEmpty(message)) {
+        message = "一幅史诗级可爱的场景。一只小巧可爱的卡通小猫将军，身穿细节精致的金色盔甲，头戴一个稍大的头盔，勇敢地站在悬崖上。";
+    }
 
-            handleImageUpload(event) {
-                const file = event.target.files[0];
-                if (file && file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        this.imagePreview.src = e.target.result;
-                        this.imagePreview.style.display = 'block';
-                        // 保存图片的Base64数据
-                        this.imageBase64Data = e.target.result;
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    this.clearImage();
-                }
-            }
+    Map<String, Object> requestMap = new HashMap<>();
+    requestMap.put("model", "wan2.5-t2v-preview");
 
-            clearImage() {
-                this.fileUpload.value = '';
-                this.imagePreview.style.display = 'none';
-                this.imagePreview.src = '';
-                this.imageBase64Data = null;
-            }
+    Map<String,Object> input = new LinkedHashMap();
+    input.put("prompt", message);
+    input.put("language_type", "Chinese");
+    requestMap.put("input", input);
 
-            sendMessage() {
-                const message = this.questionInput.value.trim();
-                const reset = this.resetCheckbox.checked;
-                if (!message || this.isStreaming) return;
+    Map<String,Object> parameters = new LinkedHashMap();
+    parameters.put("size", "832*480");
+    parameters.put("prompt_extend", true);
+    parameters.put("duration", 10);
+    parameters.put("audio", true);
+    requestMap.put("parameters", parameters);
 
-                // 显示用户消息
-                this.displayUserMessage(message);
-                this.questionInput.value = '';
+    Map header = new LinkedHashMap();
+    header.put("X-DashScope-Async", "enable");
+    
+    // 提交视频生成任务并获取任务ID
+    Map taskInfo = HttpRequestProxy.sendJsonBody("qwenvlplus", requestMap, 
+        "/api/v1/services/aigc/video-generation/video-synthesis", Map.class);
 
-                // 显示机器人正在输入指示器
-                const indicatorId = this.showTypingIndicator();
+    return taskInfo;
+}
 
-                // 修改为POST请求URL
-                const deepseekurl = `/demoproject/reactor/deepseekBackuppressSession.api`;
-                const vlurl = `/demoproject/reactor/qwenvl.api`;
-                
-                let url;
-                const selectedModel = this.modelSelect.value;
-                if (selectedModel === 'deepseek') {
-                    url = deepseekurl;
-                } else if (selectedModel === 'qwenvlplus') {
-                    url = vlurl;
-                }
+/**
+ * 查询视频生成任务执行结果服务
+ * http://127.0.0.1/demoproject/reactor/getVideoTaskResult.api
+ * @param questions
+ * @return
+ * @throws InterruptedException
+ */
+public @ResponseBody Map getVideoTaskResult(@RequestBody Map<String,Object> questions) throws InterruptedException {
+    Map<String, Object> result = new HashMap<>();
+    String taskId = questions != null ? (String)questions.get("taskId") : null;
+    
+    if(SimpleStringUtil.isEmpty(taskId)) {
+        result.put("error", "taskId为空");
+        return result;
+    }
 
-                // 创建AbortController用于取消请求
-                this.abortController = new AbortController();
-                this.isStreaming = true;
+    String requestUrl = "/api/v1/tasks/" + taskId;
+    Map taskInfo = HttpRequestProxy.httpGetforObject("qwenvlplus", requestUrl, Map.class);
+    return taskInfo;
+}
+// 在 constructor 中添加新属性
+this.videoTaskContainer = document.getElementById('video-task-container');
+this.taskIdInput = document.getElementById('task-id-input');
+this.queryTaskBtn = document.getElementById('query-task-btn');
+this.taskResultContainer = document.getElementById('task-result-container');
 
-                // 构建请求体
-                const requestBody = {
-                    message: message,
-                    reset: reset
-                };
+// 在 initEventListeners 方法中添加事件监听
+this.modelSelect.addEventListener('change', () => this.toggleVideoInput());
+this.queryTaskBtn.addEventListener('click', () => this.queryVideoTask());
 
-                // 根据模型类型添加相应的图片参数
-                if (selectedModel === 'qwenvlplus') {
-                    // 如果是URL模式且有输入URL，则使用URL
-                    if (this.imageUrlInput.value.trim()) {
-                        requestBody.imageUrl = this.imageUrlInput.value.trim();
-                    }
-                    // 如果是上传图片模式且有上传图片，则使用base64数据
-                    else if (this.imageBase64Data) {
-                        requestBody.imageBase64 = this.imageBase64Data;
-                    }
-                }
+// 在 toggleAudioInput 方法后添加
+toggleVideoInput() {
+    this.modelType = this.modelSelect.options[this.modelSelect.selectedIndex].getAttribute('type');
+    
+    // 隐藏所有特殊输入区域
+    this.uploadContainer.style.display = 'none';
+    this.audioInputContainer.style.display = 'none';
+    this.videoTaskContainer.style.display = 'none';
+    
+    // 根据模型类型显示对应区域
+    if (this.modelType === 'VL') {
+        this.uploadContainer.style.display = 'block';
+        this.questionInput.style.flex = 'unset';
+        this.questionInput.style.width = '200px';
+    } else if (this.modelType === 'AUDIO') {
+        this.audioInputContainer.style.display = 'flex';
+        this.questionInput.style.flex = 'unset';
+        this.questionInput.style.width = '200px';
+    } else if (this.modelType === 'VIDEO') {
+        this.videoTaskContainer.style.display = 'block';
+        this.questionInput.style.flex = 'unset';
+        this.questionInput.style.width = '200px';
+    } else {
+        this.questionInput.style.flex = '1';
+        this.questionInput.style.width = '';
+        this.imageUrlInput.value = '';
+    }
+}
 
-                // 使用fetch API进行POST流式请求
-                fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestBody),
-                    signal: this.abortController.signal
-                })
-                // ... 后续代码保持不变 ...
-            }
+// 添加视频任务查询方法
+queryVideoTask() {
+    const taskId = this.taskIdInput.value.trim();
+    if (!taskId) {
+        alert('请输入任务ID');
+        return;
+    }
 
-            displayUserMessage(content) {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'message user-message';
+    const url = 'reactor/getVideoTaskResult.api';
+    const requestBody = { taskId: taskId };
 
-                // 添加文字内容
-                if (content) {
-                    const textDiv = document.createElement('div');
-                    textDiv.textContent = content;
-                    messageDiv.appendChild(textDiv);
-                }
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    })
+    .then(response => response.json())
+    .then(data => {
+        this.displayTaskResult(data);
+    })
+    .catch(error => {
+        console.error('查询任务失败:', error);
+        this.displayErrorMessage('查询任务失败: ' + error.message);
+    });
+}
 
-                // 如果有预览图片，则添加图片
-                if (this.imagePreview.style.display !== 'none') {
-                    const img = document.createElement('img');
-                    img.src = this.imagePreview.src;
-                    img.alt = "用户上传的图片";
-                    messageDiv.appendChild(img);
-                }
+// 显示任务查询结果
+displayTaskResult(data) {
+    this.taskResultContainer.innerHTML = '';
+    
+    if (data.error) {
+        this.taskResultContainer.innerHTML = `<div style="color: red;">错误: ${data.error}</div>`;
+        return;
+    }
 
-                this.chatContainer.appendChild(messageDiv);
-                this.scrollToBottom();
-                
-                // 注意：不清除图片在这里，而是在请求发送完成后清除
-            }
+    const status = data.output && data.output.task_status ? data.output.task_status : '未知';
+    const resultDiv = document.createElement('div');
+    resultDiv.className = 'task-result';
+    
+    let content = `<div><strong>任务ID:</strong> ${data.request_id || 'N/A'}</div>`;
+    content += `<div><strong>任务状态:</strong> ${status}</div>`;
+    
+    if (data.output && data.output.video_url) {
+        content += `
+            <div style="margin-top: 10px;">
+                <strong>生成的视频:</strong><br/>
+                <video controls style="max-width: 100%; height: auto; margin-top: 5px;">
+                    <source src="${data.output.video_url}" type="video/mp4">
+                    您的浏览器不支持视频播放。
+                </video>
+                <div style="margin-top: 5px;">
+                    <a href="${data.output.video_url}" target="_blank" download>下载视频</a>
+                </div>
+            </div>
+        `;
+    } else if (data.output && data.output.message) {
+        content += `<div><strong>任务信息:</strong> ${data.output.message}</div>`;
+    }
+    
+    resultDiv.innerHTML = content;
+    this.taskResultContainer.appendChild(resultDiv);
+}
 
-            // ... 其他方法保持不变 ...
+// 修改 sendMessage 方法处理视频生成请求
+// 在 switch 语句中添加 VIDEO 模型处理
+// case 'VIDEO':
+//     url = `reactor/genVideoByqwenwan.api`;
+//     break;
+
+// 在 sendMessage 方法的 fetch.then 部分添加对视频生成响应的处理
+// 特殊处理VIDEO模型的响应
+else if (this.modelType === 'VIDEO') {
+    return response.json().then(data => {
+        this.isStreaming = false;
+        let botMessageElement = this.createBotMessageElement();
+
+        // 显示任务信息
+        if (data && data.request_id) {
+            const taskInfo = document.createElement('div');
+            taskInfo.innerHTML = `
+                <div><strong>视频生成任务已提交</strong></div>
+                <div><strong>任务ID:</strong> ${data.request_id}</div>
+                <div><strong>状态:</strong> ${data.output ? data.output.task_status : '提交中'}</div>
+                ${data.output && data.output.message ? `<div><strong>信息:</strong> ${data.output.message}</div>` : ''}
+                <div style="margin-top: 10px;">
+                    <button onclick="document.getElementById('task-id-input').value='${data.request_id}';document.getElementById('query-task-btn').click()">查询任务状态</button>
+                </div>
+            `;
+            botMessageElement.appendChild(taskInfo);
+        } else {
+            botMessageElement.textContent = '视频生成任务提交失败';
         }
 
-        // ... 原有初始化代码 ...
-    </script>
-</body>
-</html>
+        this.scrollToBottom();
+    });
+}
+
