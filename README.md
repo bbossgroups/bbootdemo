@@ -1,6 +1,8 @@
 #开发调试
 开发调测时需在resources/application.properties中配置web.docBase属性，指定应用WebRoot目录，如：
+
 web.docBase=C:/workspace/bbossgroups/bboss-demos/bbootdemo/WebRoot
+
 实际发布包中可以注释或者去掉web.docBase属性
 
 可以通过Main类启动和调试应用：org.frameworkset.test.Main
