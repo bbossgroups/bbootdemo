@@ -1,4 +1,4 @@
-#开发调试
+# 开发调试
 开发调测时需在resources/application.properties中配置web.docBase属性，指定应用WebRoot目录，如：
 
 web.docBase=C:/workspace/bbossgroups/bboss-demos/bbootdemo/WebRoot
@@ -17,6 +17,7 @@ startup.bat/restart.bat
 ## linux/unix/macos
 
 chmod +x startup.sh restart.sh
+
 startup.sh/restart.sh
 
 # 停止应用
