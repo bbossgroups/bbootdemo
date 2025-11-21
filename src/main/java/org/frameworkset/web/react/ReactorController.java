@@ -325,7 +325,7 @@ public class ReactorController implements InitializingBean {
             imageUrls.add(tmp);
         }
  
-        Map<String, Object> userMessage =MessageBuilder.buildInputImagesMessage(message,imageUrls.toArray(new String[]{}));
+        Map<String, Object> userMessage = MessageBuilder.buildInputImagesMessage(message,imageUrls.toArray(new String[]{}));
         messages.add(userMessage);
 
 
