@@ -55,6 +55,7 @@
             <option type="VL" value="qwenvlplus">QwenVL Plus（阿里百炼图片识别）</option>
             <option type="VL" value="qwenvl-guiji">QwenVL32B（硅基流动图片识别）</option>
             <option type="IMAGE" value="qwen-image">qwen-image-plus（百炼图片生成）</option>
+            <option type="IMAGE" value="volcengine">volcengine-image（火山引擎图片生成）</option>
             <option type="AUDIO" value="audio-model">qwen3-asr-flash（百炼语音识别）</option>
             <option type="TTS" value="qwen-tts">qwen3-tts-flash（百炼语音生成）</option>
             <option type="VIDEO" value="qwen-video">wan2.5-t2v-preview（百炼视频生成）</option>
@@ -73,7 +74,11 @@
         <label for="reset-checkbox">重置会话</label>
         <input type="checkbox" id="deep-think-checkbox">
         <label for="deep-think-checkbox">深度思考</label>
+        <!-- 新增stream控制参数 -->
+        <input type="checkbox" id="stream-checkbox" checked>
+        <label for="stream-checkbox">启用流式输出</label>
     </div>
+
     <button id="send-btn">发送</button>
     <button id="cancel-btn">取消</button>
 </div>
@@ -97,6 +102,7 @@
             this.questionInput = document.getElementById('question-input');
             this.resetCheckbox = document.getElementById('reset-checkbox');
             this.deepThinkCheckbox = document.getElementById('deep-think-checkbox');
+            this.streamCheckbox = document.getElementById('stream-checkbox');
             this.sendBtn = document.getElementById('send-btn');
             this.cancelBtn = document.getElementById('cancel-btn');
             this.modelSelect = document.getElementById('model-select');
@@ -469,7 +475,8 @@
             
             const reset = this.resetCheckbox.checked;
             const deepThink = this.deepThinkCheckbox.checked;
-
+            // 获取stream参数
+            const enableStream = this.streamCheckbox.checked;
             // 显示用户消息
             // this.displayMessage(message, 'user');
             // this.displayUserMessage(message);
@@ -491,7 +498,7 @@
             const vlurl = `reactor/qwenvl.api`;
 
             //千问图片生成服务地址
-            const imageurl = `reactor/genImageByqwenimage.api`;
+            const imageurl = `reactor/genImage.api`;
             // 音频识别服务地址
             const audiourl = `reactor/audioFileRecognition.api`;
 
@@ -533,7 +540,9 @@
                 message: message,
                 reset: reset,
                 selectedModel: selectedModel,
-                deepThink: deepThink
+                deepThink: deepThink,
+                // 添加stream参数
+                enableStream: enableStream
             };
 
             // 根据模型类型添加相应的图片参数

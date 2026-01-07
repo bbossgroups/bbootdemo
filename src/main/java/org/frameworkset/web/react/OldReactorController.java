@@ -17,8 +17,10 @@ package org.frameworkset.web.react;
 
 import com.frameworkset.util.SimpleStringUtil;
 import org.frameworkset.spi.InitializingBean;
-import org.frameworkset.spi.ai.AIAgent;
-import org.frameworkset.spi.ai.model.*;
+import org.frameworkset.spi.ai.model.AudioEvent;
+import org.frameworkset.spi.ai.model.ImageAgentMessage;
+import org.frameworkset.spi.ai.model.ImageEvent;
+import org.frameworkset.spi.ai.model.ServerEvent;
 import org.frameworkset.spi.ai.util.AudioDataBuilder;
 import org.frameworkset.spi.ai.util.MessageBuilder;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
@@ -30,20 +32,162 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 
 import javax.servlet.http.HttpServletRequest;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.*;
 
 /**
  * @author biaoping.yin
  * @Date 2025/9/30
  */
-public class ReactorController implements InitializingBean {
-    private Logger logger = LoggerFactory.getLogger(ReactorController.class);
-     
-    // 多轮会话记忆窗口：使用静态List变量模拟存储会话记忆（实际项目中建议使用数据库）
+public class OldReactorController implements InitializingBean {
+    private Logger logger = LoggerFactory.getLogger(OldReactorController.class);
+    public Flux<String> chatTest() {
+
+//		NettyWebServer nettyWebServer = new NettyWebServer();
+        logger.info("");
+
+        Flux<String> flux = Flux.interval(Duration.ofSeconds(1))
+                .map(i -> {
+                    String data = "中文data: "+ i +"," + LocalDateTime.now() + "\n\n";
+                    logger.info(data);
+                    return data;
+                })
+                .take(10); // 限制发送10条数据
+        return flux;
+        //chat交互测试
+//        return Flux.interval(Duration.ofSeconds(1)).take(10).map(sequence -> "{" + "    \"data\": \"33\"," + "    \"count\": \"" + sequence + "\"" + "}");
+    }
+
+
+    /**
+     * http://127.0.0.1/demoproject/chatpost.html
+     * @param questions
+     * @return
+     */
+    public Flux<String> deepseekChat(@RequestBody Map<String,Object> questions) {
+        String message = (String)questions.get("message");
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("model", "deepseek-chat");
+
+        List<Map<String, String>> messages = new ArrayList<>();
+        Map<String, String> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", message);
+        messages.add(userMessage);
+
+        requestMap.put("messages", messages);
+        requestMap.put("stream", true);
+        requestMap.put("max_tokens", 8192);
+        requestMap.put("temperature", 0.7);
+        return HttpRequestProxy.streamChatCompletion("deepseek","/chat/completions",requestMap);
+//                .doOnSubscribe(subscription -> logger.info("开始订阅流..."))
+//                .doOnNext(chunk -> System.out.print(chunk))
+//                .doOnComplete(() -> logger.info("\n=== 流完成 ==="))
+//                .doOnError(error -> logger.error("错误: " + error.getMessage(),error));
+//                .subscribe();
+
+    }
+
+    /**
+     * http://127.0.0.1/demoproject/chatpostBackpress.html
+     * @param questions
+     * @return
+     */
+    public Flux<List<String>> deepseekChatBackpress(@RequestBody Map<String,Object> questions) {
+        String message = (String)questions.get("message");
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("model", "deepseek-chat");
+
+        List<Map<String, String>> messages = new ArrayList<>();
+        Map<String, String> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", message);
+        messages.add(userMessage);
+
+        requestMap.put("messages", messages);
+        requestMap.put("stream", true);
+        requestMap.put("max_tokens", 8192);
+        requestMap.put("temperature", 0.7);
+        return HttpRequestProxy.streamChatCompletion("deepseek","/chat/completions",requestMap).limitRate(5) // 限制请求速率
+                .buffer(3) ;   // 每3个元素缓冲一次
+//                .doOnSubscribe(subscription -> logger.info("开始订阅流..."))
+//                .doOnNext(chunk -> System.out.print(chunk))
+//                .doOnComplete(() -> logger.info("\n=== 流完成 ==="))
+//                .doOnError(error -> logger.error("错误: " + error.getMessage(),error));
+//                .subscribe();
+
+    }
+
+
+    /**
+     * http://127.0.0.1/demoproject/chatpostServerEvent.html
+     * @param questions
+     * @return
+     */
+    public Flux<ServerEvent> deepseekChatServerEvent(@RequestBody Map<String,Object> questions) {
+        String message = (String)questions.get("message");
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("model", "deepseek-chat");
+
+        List<Map<String, String>> messages = new ArrayList<>();
+        Map<String, String> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", message);
+        messages.add(userMessage);
+
+        requestMap.put("messages", messages);
+        requestMap.put("stream", true);
+        requestMap.put("max_tokens", 8192);
+        requestMap.put("temperature", 0.7);
+        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent("deepseek","/chat/completions",requestMap);
+
+        return flux.doOnNext(chunk -> {
+            if(!chunk.isDone())
+                logger.info(chunk.getData());
+        });
+       
+
+    }
+
+
+    /**
+     * 背压案例
+     * http://127.0.0.1/demoproject/chatBackuppress.html
+     * @param questions
+     * @return
+     */
+    public Flux<List<ServerEvent>> deepseekChatServerEventBackuppress(@RequestBody Map<String,Object> questions) {
+        String message = (String)questions.get("message");
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("model", "deepseek-chat");
+
+        List<Map<String, String>> messages = new ArrayList<>();
+        Map<String, String> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", message);
+        messages.add(userMessage);
+
+        requestMap.put("messages", messages);
+        requestMap.put("stream", true);
+        requestMap.put("max_tokens", 8192);
+        requestMap.put("temperature", 0.7);
+        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent("deepseek","/chat/completions",requestMap);
+
+        return flux.doOnNext(chunk -> {
+            if(!chunk.isDone()) {
+                logger.info(chunk.getData());
+            }
+        }).limitRate(5) // 限制请求速率
+                .buffer(3) ;   // 每3个元素缓冲一次;
+
+
+    }
+    // 使用静态变量存储会话记忆（实际项目中建议使用缓存或数据库）
     static List<Map<String, Object>> sessionMemory = new ArrayList<>();
 
      /**
-     * 使用标准化API实现流式异步/同步智能问答功能，带背压案例 和多轮会话记忆功能（完善版）
+     * 智能问答功能，背压案例 - 带会话记忆功能（完善版）
      * http://127.0.0.1/demoproject/chatBackuppressSession.html
      * @param questions
      * @return
@@ -53,66 +197,62 @@ public class ReactorController implements InitializingBean {
         String selectedModel = (String)questions.get("selectedModel");
         Boolean reset = (Boolean) questions.get("reset");
         Boolean deepThink = (Boolean) questions.get("deepThink");
-        Boolean enableStream = (Boolean) questions.get("enableStream");
 
-        //重置会议记忆窗口
         if(reset != null && reset){
             sessionMemory.clear();
         }
         String message = (String)questions.get("message");
-        ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
-        chatAgentMessage.setMessage( message);//当前消息
-        //设置模型
+        Map<String, Object> requestMap = new HashMap<>();
         if(selectedModel.equals("deepseek")) {
             if(deepThink == null || !deepThink) {
-                chatAgentMessage.setModel("deepseek-chat");
+                requestMap.put("model", "deepseek-chat");
             }
             else {
-                chatAgentMessage.setModel("deepseek-reasoner");
+                requestMap.put("model", "deepseek-reasoner");
             }
             
         }
         else {
             selectedModel = "qwenvlplus";
-            chatAgentMessage.setModel("qwen3-max");
+//            requestMap.put("model", "Qwen/Qwen3-Next-80B-A3B-Instruct");//指定硅基模型
+//            requestMap.put("model", "qwen-plus");//指定百炼千问模型
+            requestMap.put("model", "qwen3-max");//指定百炼千问模型
 
             
             
         }
-        //设置历史消息
-        chatAgentMessage.setSessionMemory(sessionMemory)
-        //不配置以下参数时，默认值设置如下
-                .addParameter("stream", enableStream)
-                .addParameter("max_tokens", 8192)
-                .addParameter("temperature", 0.7);
- 
-        //设置模型服务地址
-        String completionsUrl = selectedModel.equals("deepseek")? "/chat/completions": //Deepseek LLM模型服务地址
-                                                    "/compatible-mode/v1/chat/completions";//通义千问LLM模型服务地址
+    
+        // 构建消息历史列表，包含之前的会话记忆
+        List<Map<String, Object>> messages = new ArrayList<>(sessionMemory);
         
-        //提交会话请求：由enableStream参数控制流式异步/同步会话模式，true 异步  false 同步
-        AIAgent aiAgent = new AIAgent();
-        Flux<ServerEvent> flux = aiAgent.streamChat(selectedModel,completionsUrl,chatAgentMessage);
+        // 添加当前用户消息
+        Map<String, Object> userMessage = MessageBuilder.buildUserMessage( message);
+        sessionMemory.add(userMessage);
+        messages.add(userMessage);
+    
+        requestMap.put("messages", messages);
+        requestMap.put("stream", true);
+        requestMap.put("max_tokens", 8192);
+        requestMap.put("temperature", 0.7);
+        String completionsUrl = selectedModel.equals("deepseek")? "/chat/completions":"/compatible-mode/v1/chat/completions";
+        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent(selectedModel,completionsUrl,requestMap);
     
         // 用于累积完整的回答
         StringBuilder completeAnswer = new StringBuilder();
     
         return flux.doOnNext(chunk -> {
            
-            //调试模式：输出流水会话片段到日志文件中
-            if(logger.isDebugEnabled()) {
-                if (!chunk.isDone()) {
-                    logger.debug(chunk.getData());
-                }
+            if(!chunk.isDone()) {
+                logger.info(chunk.getData());
             }
             
         })
-        .limitRate(5) //背压：限制请求速率
-        .buffer(3) //缓冲：每3个元素缓冲一次
+        .limitRate(5) // 限制请求速率
+        .buffer(3) // 每3个元素缓冲一次
         .doOnNext(bufferedEvents -> {
             // 处理模型响应并更新会话记忆
             for(ServerEvent event : bufferedEvents) {
-                //答案前后都可以添加链接和标题，实现相关知识资料链接
+                //答案前后都可以添加链接和标题
                 if(event.isFirst() || event.isDone()){
                     event.addExtendData("url","https://www.bbossgroups.com");
                     event.addExtendData("title","bboss官网");
@@ -251,7 +391,79 @@ public class ReactorController implements InitializingBean {
     }
 
 
+    /**
+     * 图片生成功能，无会话记忆功能
+     * http://127.0.0.1/demoproject/chatBackuppressSession.html
+     * 参考文档：
+     * https://bailian.console.aliyun.com/?spm=5176.29597918.J_SEsSjsNv72yRuRFS2VknO.2.74ba7b08ig5jxD&tab=api#/api/?type=model&url=2975126
+     * '{
+     *     "model": "qwen-image-plus",
+     *     "input": {
+     *         "messages": [
+     *             {
+     *                 "role": "user",
+     *                 "content": [
+     *                     {
+     *                         "text": "一副典雅庄重的对联悬挂于厅堂之中，房间是个安静古典的中式布置，桌子上放着一些青花瓷，对联上左书“义本生知人机同道善思新”，右书“通云赋智乾坤启数高志远”， 横批“智启通义”，字体飘逸，中间挂在一着一副中国风的画作，内容是岳阳楼。"
+     *                     }
+     *                 ]
+     *             }
+     *         ]
+     *     },
+     *     "parameters": {
+     *         "negative_prompt": "",
+     *         "prompt_extend": true,
+     *         "watermark": true,
+     *         "size": "1328*1328"
+     *     }
+     * @param questions
+     * @return
+     */
+    public @ResponseBody Map genImageByqwenimage(@RequestBody Map<String,Object> questions) throws InterruptedException {
+//        String selectedModel = (String)questions.get("selectedModel");
     
+        
+        String message  = null;
+        message = questions != null?(String)questions.get("message"):null;
+        if(SimpleStringUtil.isEmpty( message)){
+            message = "生成一颗桂花树";
+        }
+ 
+
+
+        
+        Map<String, Object> requestMap = new HashMap<>();
+        
+        requestMap.put("model", "qwen-image-plus");
+
+
+        Map<String,Object> input = new LinkedHashMap<>();
+        
+       
+        // 构建消息历史列表，包含之前的会话记忆
+        
+        List<Map<String, Object>> messages = new ArrayList<>();
+        Map<String, Object> userMessage = MessageBuilder.buildGenImageMessage(message);
+        messages.add(userMessage);
+        input.put("messages", messages);
+        requestMap.put("input", input);
+
+        // enable_thinking 参数开启思考过程，thinking_budget 参数设置最大推理过程 Token 数
+        Map parameters = new LinkedHashMap();
+        parameters.put("negative_prompt","");
+        parameters.put("prompt_extend",true);
+        parameters.put("watermark",false);
+        parameters.put("size","1328*1328");
+        requestMap.put("parameters", parameters);
+
+        ImageEvent data = HttpRequestProxy.multimodalImageGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",requestMap);
+        
+        String imageUrl = data.getImageUrl();
+        
+        Map ret = new HashMap();
+        ret.put("imageUrl",imageUrl);
+        return ret;
+    }
 
     public @ResponseBody Map genImage(@RequestBody Map<String,Object> questions) throws InterruptedException {
         String selectedModel = (String)questions.get("selectedModel");
@@ -262,32 +474,23 @@ public class ReactorController implements InitializingBean {
             message = "生成一颗桂花树";
         }
         ImageAgentMessage request = new ImageAgentMessage();
-        
         request.setMessage( message);
         ImageEvent data = null;
-        AIAgent aiAgent = new AIAgent();
         if(selectedModel.equals("volcengine")){
-            //字节火山引擎
-            request.setModelType(AIConstants.AI_MODEL_TYPE_DOUBAO);
             request.setModel( "doubao-seedream-4-5-251128");
             request.addParameter("sequential_image_generation", "disabled");
             request.addParameter("response_format", "url");
             request.addParameter("size", "2k");
             request.addParameter("watermark", true);
-            
-            data = aiAgent.genImage("volcengine","/api/v3/images/generations",request);
+            data = HttpRequestProxy.multimodalImageGeneration("volcengine","/api/v3/images/generations",request);
         }
         else{
-            
-            //阿里百炼
-            //通过在http.modelType指定全局模型适配器类型，亦可以在ImageAgentMessage对象设置请求级别modelType模型适配器类型（优先级高于全局模型适配器类型）
-            request.setModelType(AIConstants.AI_MODEL_TYPE_QWEN);
             request.setModel( "qwen-image-plus");
             request.addParameter("negative_prompt","");
             request.addParameter("prompt_extend",true);
             request.addParameter("watermark",false);
             request.addParameter("size","1328*1328");
-            data = aiAgent.genImage("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",request);
+            data = HttpRequestProxy.multimodalImageGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",request);
         }
         String imageUrl = data.getImageUrl();
 
@@ -296,64 +499,55 @@ public class ReactorController implements InitializingBean {
         return ret;
         
     }
+    /**
+     * curl -X POST https://ark.cn-beijing.volces.com/api/v3/images/generations \
+     *   -H "Content-Type: application/json" \
+     *   -H "Authorization: Bearer $ARK_API_KEY" \
+     *   -d '{
+     *     "model": "doubao-seedream-4-5-251128",
+     *     "prompt": "星际穿越，黑洞，黑洞里冲出一辆快支离破碎的复古列车，抢视觉冲击力，电影大片，末日既视感，动感，对比色，oc渲染，光线追踪，动态模糊，景深，超现实主义，深蓝，画面通过细腻的丰富的色彩层次塑造主体与场景，质感真实，暗黑风背景的光影效果营造出氛围，整体兼具艺术幻想感，夸张的广角透视效果，耀光，反射，极致的光影，强引力，吞噬",
+     *     "sequential_image_generation": "disabled",
+     *     "response_format": "url",
+     *     "size": "2K",
+     *     "stream": false,
+     *     "watermark": true
+     * }'
+     * @param questions
+     * @return
+     * @throws InterruptedException
+     */
+    public @ResponseBody Map genImageBydoubao(@RequestBody Map<String,Object> questions) throws InterruptedException {
+
+        String message  = null;
+        message = questions != null?(String)questions.get("message"):null;
+        if(SimpleStringUtil.isEmpty( message)){
+            message = "生成一颗桂花树";
+        }
 
 
-    public @ResponseBody Map genImage1(@RequestBody Map<String,Object> questions) throws InterruptedException {
 
-        
-         
-        ImageAgentMessage request = new ImageAgentMessage();
-        //设置生成图片的文本内容（提示词）
-        String message  = "生成一美女";
-        request.setMessage( message);        
-        //设置字节火山引擎豆包图片生成模型
-        request.setModel( "doubao-seedream-4-5-251128");
-        
-        //设置字节火山引擎豆包图片生成模型特有参数
-        request.addParameter("sequential_image_generation", "disabled");
-        request.addParameter("response_format", "url");
-        request.addParameter("size", "2k");
-        request.addParameter("watermark", true);
-        //执行通用AI客户端工具标准化图片生成API，指定模型服务名称volcengine和字节火山引擎豆包图片生成模型服务地址，并提交图片生成请求参数request
-        ImageEvent data = HttpRequestProxy.multimodalImageGeneration("volcengine","/api/v3/images/generations",request);
-        
-        //获取生成的图片url，可以直接在浏览器中展示
+        Map<String, Object> requestMap = new HashMap<>();
+
+        requestMap.put("model", "doubao-seedream-4-5-251128");
+        requestMap.put("prompt", message);
+        requestMap.put("sequential_image_generation", "disabled");
+        requestMap.put("response_format", "url");
+        requestMap.put("size", "2k");
+        requestMap.put("watermark", true);
+
+
+ 
+
+        ImageEvent data = HttpRequestProxy.multimodalImageGeneration("volcengine","/api/v3/images/generations",requestMap);
+
         String imageUrl = data.getImageUrl();
 
         Map ret = new HashMap();
         ret.put("imageUrl",imageUrl);
         return ret;
-
     }
-
-    public @ResponseBody Map genImage2(@RequestBody Map<String,Object> questions) throws InterruptedException {
-
-
-
-        ImageAgentMessage request = new ImageAgentMessage();
-        //设置生成图片的文本内容（提示词）
-        String message  = "生成一位美女";
-        request.setMessage( message);
-        //设置通义千问图片生成模型
-        request.setModel( "qwen-image-plus");
-
-        //设置通义千问图片生成模型特有参数
-        request.addParameter("negative_prompt","");
-        request.addParameter("prompt_extend",true);
-        request.addParameter("watermark",false);
-        request.addParameter("size","1328*1328");
-        //执行通用AI客户端工具标准化图片生成API，指定模型服务名称qwenvlplus和通义千问图片图片生成模型服务地址，并提交图片生成请求参数request
-        ImageEvent data = HttpRequestProxy.multimodalImageGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",request);
-
-        //获取生成的图片url，可以直接在浏览器中展示
-        String imageUrl = data.getImageUrl();
-
-        Map ret = new HashMap();
-        ret.put("imageUrl",imageUrl);
-        return ret;
-
-    }
-     
+    
+ 
 	/**
      * 音频识别功能
      * https://bailian.console.aliyun.com/?spm=5176.29597918.J_SEsSjsNv72yRuRFS2VknO.2.74ba7b08ig5jxD&tab=doc#/doc/?type=model&url=2979031
@@ -395,7 +589,7 @@ public class ReactorController implements InitializingBean {
                     try {
                         byte[] audioBytes = audio.getBytes();
                         base64Audio = "data:" + audio.getContentType() + ";base64," +
-                                java.util.Base64.getEncoder().encodeToString(audioBytes);
+                                Base64.getEncoder().encodeToString(audioBytes);
                     } catch (Exception e) {
                         logger.error("音频文件转换base64失败", e);
                     }
@@ -598,7 +792,7 @@ public class ReactorController implements InitializingBean {
      */
     @Override
     public void afterPropertiesSet() throws Exception {
-        //加载模型服务配置文件，启动模型服务智能体工具
+        //加载配置文件，启动负载均衡器
         HttpRequestProxy.startHttpPools("application.properties");
     }
 }
