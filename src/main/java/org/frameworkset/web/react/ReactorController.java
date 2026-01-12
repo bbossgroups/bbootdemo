@@ -19,6 +19,7 @@ import com.frameworkset.util.SimpleStringUtil;
 import org.frameworkset.spi.InitializingBean;
 import org.frameworkset.spi.ai.AIAgent;
 import org.frameworkset.spi.ai.model.*;
+import org.frameworkset.spi.ai.util.AIAgentUtil;
 import org.frameworkset.spi.ai.util.AudioDataBuilder;
 import org.frameworkset.spi.ai.util.MessageBuilder;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
@@ -62,33 +63,41 @@ public class ReactorController implements InitializingBean {
         String message = (String)questions.get("message");
         ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
         chatAgentMessage.setMessage( message);//当前消息
-        //设置模型
+        
+        //设置模型服务地址
+        String completionsUrl =  null;
+        String model = null;
         if(selectedModel.equals("deepseek")) {
             if(deepThink == null || !deepThink) {
-                chatAgentMessage.setModel("deepseek-chat");
+                model = "deepseek-chat";
             }
             else {
-                chatAgentMessage.setModel("deepseek-reasoner");
+                model = "deepseek-reasoner";
             }
+            completionsUrl =   "/chat/completions"; //Deepseek LLM模型服务地址
             
+        }
+        else if(selectedModel.equals("jiutian")){
+            completionsUrl =  "/largemodel/moma/api/v3/chat/completions";
+            model = "jiutian-lan-comv3";
         }
         else {
-            selectedModel = "qwenvlplus";
-            chatAgentMessage.setModel("qwen3-max");
-
+            model = "qwen3-max";
+            completionsUrl =  "/compatible-mode/v1/chat/completions";//通义千问LLM模型服务地址
             
             
         }
+        //设置模型
+        chatAgentMessage.setModel( model);
         //设置历史消息
         chatAgentMessage.setSessionMemory(sessionMemory)
         //不配置以下参数时，默认值设置如下
-                .addParameter("stream", enableStream)
+                .setStream( enableStream)
                 .addParameter("max_tokens", 8192)
                 .addParameter("temperature", 0.7);
  
-        //设置模型服务地址
-        String completionsUrl = selectedModel.equals("deepseek")? "/chat/completions": //Deepseek LLM模型服务地址
-                                                    "/compatible-mode/v1/chat/completions";//通义千问LLM模型服务地址
+       
+       
         
         //提交会话请求：由enableStream参数控制流式异步/同步会话模式，true 异步  false 同步
         AIAgent aiAgent = new AIAgent();
@@ -150,70 +159,117 @@ public class ReactorController implements InitializingBean {
     public Flux<List<ServerEvent>>  qwenvl(@RequestBody Map<String,Object> questions) throws InterruptedException {
         String selectedModel = (String)questions.get("selectedModel");
         Boolean reset = (Boolean) questions.get("reset");
+        Boolean enableStream = (Boolean) questions.get("enableStream");
         if(reset != null && reset){
             sessionMemory.clear();
         }
         Boolean deepThink = (Boolean) questions.get("deepThink");
+        // enable_thinking 参数开启思考过程，thinking_budget 参数设置最大推理过程 Token 数
+        if(deepThink == null)
+            deepThink = true;
         String message  = null;
         message = (String)questions.get("message");
         if(SimpleStringUtil.isEmpty( message)){
             message = "介绍图片内容并计算结果";
         }
-        Map<String, Object> requestMap = new HashMap<>();
-        if(selectedModel.equals("qwenvlplus")) {//阿里百炼模型服务
-            requestMap.put("model", "qwen3-vl-plus");
-        }
-        else{ //硅基流动图片识别服务
+        ImageVLAgentMessage imageVLAgentMessage = new ImageVLAgentMessage();
+        imageVLAgentMessage.setMessage(message);
+        String model= null;
+        String completionsUrl = null;
 
-            requestMap.put("model", "Qwen/Qwen3-VL-32B-Thinking");
+  
+        if(selectedModel.equals("qwenvlplus")) {
+            completionsUrl = "/compatible-mode/v1/chat/completions";
+            model = "qwen3-vl-plus";
+            imageVLAgentMessage.addParameter("enable_thinking", deepThink);
+            imageVLAgentMessage.addParameter("thinking_budget", 81920);
         }
+        else if(selectedModel.equals("volcengine")){//字节豆包
+            completionsUrl =  "/api/v3/chat/completions";
+            model = "doubao-seed-1-8-251228";
+            //支持思考程度可调节（reasoning effort）：分为 minimal、low、medium、high 四种模式，其中minimal为不思考
+            imageVLAgentMessage.addParameter("reasoning_effort", "medium");
+            imageVLAgentMessage.addParameter("max_completion_tokens", 65535);
+             
+        }
+        else if(selectedModel.equals("jiutian")){//字节豆包
+            //九天模型参考文档：https://jiutian.10086.cn/portal/common-helpcenter#/document/1160?platformCode=DMX_TYZX
+            completionsUrl =  "/largemodel/moma/api/v3/image/text";
+            model = "LLMImage2Text";
+            //支持思考程度可调节（reasoning effort）：分为 minimal、low、medium、high 四种模式，其中minimal为不思考
+           
+
+        }
+         
+        else{ //硅基流动图片识别服务
+            model = "Qwen/Qwen3-VL-32B-Thinking";
+            completionsUrl =  "/chat/completions";
+            
+        }
+
+        if(enableStream) {
+            imageVLAgentMessage.setStream( enableStream);
+            if(selectedModel.equals("qwenvlplus")) {
+                imageVLAgentMessage.addMapParameter("stream_options", "include_usage", true);
+            }
+        }
+        imageVLAgentMessage.setModel( model);
         // 构建消息历史列表，包含之前的会话记忆
-        List<Map<String, Object>> messages = new ArrayList<>(sessionMemory);
+        imageVLAgentMessage.setSessionMemory(sessionMemory);
 
         List<String> imagesBase64  = (List)questions.get("imagesBase64");
         String imageUrl = (String)questions.get("imageUrl");
         if(imageUrl != null) {
             imageUrl = imageUrl.trim();
         }
-        
 
-        List<String> imageUrls = new ArrayList<>();
+
+   
+
         if(SimpleStringUtil.isNotEmpty(imageUrl)) {
-            imageUrls.add(imageUrl);
+            imageVLAgentMessage.addImageUrl(imageUrl);
         }
         if(SimpleStringUtil.isNotEmpty(imagesBase64)) {
-            for(String tmp:imagesBase64)
-            imageUrls.add(tmp);
+            for(String tmp:imagesBase64) {
+                imageVLAgentMessage.addImageUrl(tmp);
+//                Map<String, Object> requestMap = new HashMap<>();
+//                requestMap.put("model", "LLMImage2Text");
+//                requestMap.put("image",tmp);
+//                requestMap.put("prompt", message);
+//                requestMap.put("stream", true);
+//                String rsp = HttpRequestProxy.httpPostforString("jiutian", "/largemodel/moma/api/v3/image/text", requestMap);
+//                logger.info(rsp);
+            }
+            
+            
         }
  
-        Map<String, Object> userMessage = MessageBuilder.buildInputImagesMessage(message,imageUrls.toArray(new String[]{}));
-        messages.add(userMessage);
 
-
-
-        requestMap.put("messages", messages);
-        requestMap.put("stream", true);
-
-        // enable_thinking 参数开启思考过程，thinking_budget 参数设置最大推理过程 Token 数
-        Map extra_body = new LinkedHashMap();
-        if(deepThink == null)
-            deepThink = true;
-        extra_body.put("enable_thinking",deepThink);
-        extra_body.put("thinking_budget",81920);
-        requestMap.put("extra_body",extra_body);
-
+       
+        
+        
+//        imageVLAgentMessage.setModelType(AIConstants.AI_MODEL_TYPE_QWEN);
  
         // 用于累积完整的回答
         StringBuilder completeAnswer = new StringBuilder();
         Flux<List<ServerEvent>> flux = null;
-        if(selectedModel.equals("qwenvlplus")){
-            flux = HttpRequestProxy.streamChatCompletionEvent("qwenvlplus","/compatible-mode/v1/chat/completions",requestMap).limitRate(5) // 限制请求速率
+        AIAgent aiAgent = new AIAgent();
+       
+        
+        
+        flux = aiAgent.streamImageParser(selectedModel,completionsUrl,imageVLAgentMessage)
+                .doOnNext(chunk -> {
+
+//                    if(!chunk.isDone()) {
+//                        logger.info(chunk.getData());
+//                        
+//                    }
+          
+
+                })
+
+                .limitRate(5) // 限制请求速率
                 .buffer(3);
-        }
-        else{
-            flux = HttpRequestProxy.streamChatCompletionEvent("guiji","/chat/completions",requestMap).limitRate(5) // 限制请求速率
-                    .buffer(3);
-        }
         flux = flux.doOnNext(bufferedEvents -> {
                     // 处理模型响应并更新会话记忆
                     for(ServerEvent event : bufferedEvents) {
@@ -266,6 +322,7 @@ public class ReactorController implements InitializingBean {
         request.setMessage( message);
         ImageEvent data = null;
         AIAgent aiAgent = new AIAgent();
+        String completionsUrl = null;
         if(selectedModel.equals("volcengine")){
             //字节火山引擎
             request.setModelType(AIConstants.AI_MODEL_TYPE_DOUBAO);
@@ -274,7 +331,18 @@ public class ReactorController implements InitializingBean {
             request.addParameter("response_format", "url");
             request.addParameter("size", "2k");
             request.addParameter("watermark", true);
-            
+            completionsUrl = "/api/v3/images/generations";
+            data = aiAgent.genImage("volcengine","/api/v3/images/generations",request);
+        }
+        else if(selectedModel.equals("九天")){
+            //字节火山引擎
+            request.setModelType(AIConstants.AI_MODEL_TYPE_JIUTIAN);
+            request.setModel( "doubao-seedream-4-5-251128");
+            request.addParameter("sequential_image_generation", "disabled");
+            request.addParameter("response_format", "url");
+            request.addParameter("size", "2k");
+            request.addParameter("watermark", true);
+            completionsUrl = "/api/v3/images/generations";
             data = aiAgent.genImage("volcengine","/api/v3/images/generations",request);
         }
         else{
@@ -287,8 +355,10 @@ public class ReactorController implements InitializingBean {
             request.addParameter("prompt_extend",true);
             request.addParameter("watermark",false);
             request.addParameter("size","1328*1328");
-            data = aiAgent.genImage("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",request);
+            completionsUrl = "/api/v1/services/aigc/multimodal-generation/generation";
+           
         }
+        data = aiAgent.genImage(selectedModel,completionsUrl,request);
         String imageUrl = data.getImageUrl();
 
         Map ret = new HashMap();
@@ -315,7 +385,7 @@ public class ReactorController implements InitializingBean {
         request.addParameter("size", "2k");
         request.addParameter("watermark", true);
         //执行通用AI客户端工具标准化图片生成API，指定模型服务名称volcengine和字节火山引擎豆包图片生成模型服务地址，并提交图片生成请求参数request
-        ImageEvent data = HttpRequestProxy.multimodalImageGeneration("volcengine","/api/v3/images/generations",request);
+        ImageEvent data = AIAgentUtil.multimodalImageGeneration("volcengine","/api/v3/images/generations",request);
         
         //获取生成的图片url，可以直接在浏览器中展示
         String imageUrl = data.getImageUrl();
@@ -343,7 +413,7 @@ public class ReactorController implements InitializingBean {
         request.addParameter("watermark",false);
         request.addParameter("size","1328*1328");
         //执行通用AI客户端工具标准化图片生成API，指定模型服务名称qwenvlplus和通义千问图片图片生成模型服务地址，并提交图片生成请求参数request
-        ImageEvent data = HttpRequestProxy.multimodalImageGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",request);
+        ImageEvent data = AIAgentUtil.multimodalImageGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",request);
 
         //获取生成的图片url，可以直接在浏览器中展示
         String imageUrl = data.getImageUrl();
@@ -421,7 +491,7 @@ public class ReactorController implements InitializingBean {
         
         // 用于累积完整的回答
         StringBuilder completeAnswer = new StringBuilder();
-        Flux<List<ServerEvent>> flux = HttpRequestProxy.streamChatCompletionEvent("qwenvlplus", 
+        Flux<List<ServerEvent>> flux = AIAgentUtil.streamChatCompletionEvent("qwenvlplus", 
                 "/api/v1/services/aigc/multimodal-generation/generation", requestMap)
                 .doOnNext(chunk -> {
                     if (!chunk.isDone()) {
@@ -492,7 +562,7 @@ public class ReactorController implements InitializingBean {
         inputVoice.put("language_type","Chinese");
 
         requestMap.put("input",inputVoice);
-        AudioEvent audioEvent = HttpRequestProxy.multimodalAudioGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",requestMap);
+        AudioEvent audioEvent = AIAgentUtil.multimodalAudioGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",requestMap);
 
 
 

@@ -21,6 +21,7 @@ import org.frameworkset.spi.ai.model.AudioEvent;
 import org.frameworkset.spi.ai.model.ImageAgentMessage;
 import org.frameworkset.spi.ai.model.ImageEvent;
 import org.frameworkset.spi.ai.model.ServerEvent;
+import org.frameworkset.spi.ai.util.AIAgentUtil;
 import org.frameworkset.spi.ai.util.AudioDataBuilder;
 import org.frameworkset.spi.ai.util.MessageBuilder;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
@@ -80,7 +81,7 @@ public class OldReactorController implements InitializingBean {
         requestMap.put("stream", true);
         requestMap.put("max_tokens", 8192);
         requestMap.put("temperature", 0.7);
-        return HttpRequestProxy.streamChatCompletion("deepseek","/chat/completions",requestMap);
+        return AIAgentUtil.streamChatCompletion("deepseek","/chat/completions",requestMap);
 //                .doOnSubscribe(subscription -> logger.info("开始订阅流..."))
 //                .doOnNext(chunk -> System.out.print(chunk))
 //                .doOnComplete(() -> logger.info("\n=== 流完成 ==="))
@@ -109,7 +110,7 @@ public class OldReactorController implements InitializingBean {
         requestMap.put("stream", true);
         requestMap.put("max_tokens", 8192);
         requestMap.put("temperature", 0.7);
-        return HttpRequestProxy.streamChatCompletion("deepseek","/chat/completions",requestMap).limitRate(5) // 限制请求速率
+        return AIAgentUtil.streamChatCompletion("deepseek","/chat/completions",requestMap).limitRate(5) // 限制请求速率
                 .buffer(3) ;   // 每3个元素缓冲一次
 //                .doOnSubscribe(subscription -> logger.info("开始订阅流..."))
 //                .doOnNext(chunk -> System.out.print(chunk))
@@ -140,7 +141,7 @@ public class OldReactorController implements InitializingBean {
         requestMap.put("stream", true);
         requestMap.put("max_tokens", 8192);
         requestMap.put("temperature", 0.7);
-        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent("deepseek","/chat/completions",requestMap);
+        Flux<ServerEvent> flux = AIAgentUtil.streamChatCompletionEvent("deepseek","/chat/completions",requestMap);
 
         return flux.doOnNext(chunk -> {
             if(!chunk.isDone())
@@ -172,7 +173,7 @@ public class OldReactorController implements InitializingBean {
         requestMap.put("stream", true);
         requestMap.put("max_tokens", 8192);
         requestMap.put("temperature", 0.7);
-        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent("deepseek","/chat/completions",requestMap);
+        Flux<ServerEvent> flux = AIAgentUtil.streamChatCompletionEvent("deepseek","/chat/completions",requestMap);
 
         return flux.doOnNext(chunk -> {
             if(!chunk.isDone()) {
@@ -235,7 +236,7 @@ public class OldReactorController implements InitializingBean {
         requestMap.put("max_tokens", 8192);
         requestMap.put("temperature", 0.7);
         String completionsUrl = selectedModel.equals("deepseek")? "/chat/completions":"/compatible-mode/v1/chat/completions";
-        Flux<ServerEvent> flux = HttpRequestProxy.streamChatCompletionEvent(selectedModel,completionsUrl,requestMap);
+        Flux<ServerEvent> flux = AIAgentUtil.streamChatCompletionEvent(selectedModel,completionsUrl,requestMap);
     
         // 用于累积完整的回答
         StringBuilder completeAnswer = new StringBuilder();
@@ -335,23 +336,21 @@ public class OldReactorController implements InitializingBean {
         requestMap.put("stream", true);
 
         // enable_thinking 参数开启思考过程，thinking_budget 参数设置最大推理过程 Token 数
-        Map extra_body = new LinkedHashMap();
         if(deepThink == null)
             deepThink = true;
-        extra_body.put("enable_thinking",deepThink);
-        extra_body.put("thinking_budget",81920);
-        requestMap.put("extra_body",extra_body);
+        requestMap.put("enable_thinking",deepThink);
+        requestMap.put("thinking_budget",81920);
 
  
         // 用于累积完整的回答
         StringBuilder completeAnswer = new StringBuilder();
         Flux<List<ServerEvent>> flux = null;
         if(selectedModel.equals("qwenvlplus")){
-            flux = HttpRequestProxy.streamChatCompletionEvent("qwenvlplus","/compatible-mode/v1/chat/completions",requestMap).limitRate(5) // 限制请求速率
+            flux = AIAgentUtil.streamChatCompletionEvent("qwenvlplus","/compatible-mode/v1/chat/completions",requestMap).limitRate(5) // 限制请求速率
                 .buffer(3);
         }
         else{
-            flux = HttpRequestProxy.streamChatCompletionEvent("guiji","/chat/completions",requestMap).limitRate(5) // 限制请求速率
+            flux = AIAgentUtil.streamChatCompletionEvent("guiji","/chat/completions",requestMap).limitRate(5) // 限制请求速率
                     .buffer(3);
         }
         flux = flux.doOnNext(bufferedEvents -> {
@@ -456,7 +455,7 @@ public class OldReactorController implements InitializingBean {
         parameters.put("size","1328*1328");
         requestMap.put("parameters", parameters);
 
-        ImageEvent data = HttpRequestProxy.multimodalImageGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",requestMap);
+        ImageEvent data = AIAgentUtil.multimodalImageGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",requestMap);
         
         String imageUrl = data.getImageUrl();
         
@@ -482,7 +481,7 @@ public class OldReactorController implements InitializingBean {
             request.addParameter("response_format", "url");
             request.addParameter("size", "2k");
             request.addParameter("watermark", true);
-            data = HttpRequestProxy.multimodalImageGeneration("volcengine","/api/v3/images/generations",request);
+            data = AIAgentUtil.multimodalImageGeneration("volcengine","/api/v3/images/generations",request);
         }
         else{
             request.setModel( "qwen-image-plus");
@@ -490,7 +489,7 @@ public class OldReactorController implements InitializingBean {
             request.addParameter("prompt_extend",true);
             request.addParameter("watermark",false);
             request.addParameter("size","1328*1328");
-            data = HttpRequestProxy.multimodalImageGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",request);
+            data = AIAgentUtil.multimodalImageGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",request);
         }
         String imageUrl = data.getImageUrl();
 
@@ -538,7 +537,7 @@ public class OldReactorController implements InitializingBean {
 
  
 
-        ImageEvent data = HttpRequestProxy.multimodalImageGeneration("volcengine","/api/v3/images/generations",requestMap);
+        ImageEvent data = AIAgentUtil.multimodalImageGeneration("volcengine","/api/v3/images/generations",requestMap);
 
         String imageUrl = data.getImageUrl();
 
@@ -615,7 +614,7 @@ public class OldReactorController implements InitializingBean {
         
         // 用于累积完整的回答
         StringBuilder completeAnswer = new StringBuilder();
-        Flux<List<ServerEvent>> flux = HttpRequestProxy.streamChatCompletionEvent("qwenvlplus", 
+        Flux<List<ServerEvent>> flux = AIAgentUtil.streamChatCompletionEvent("qwenvlplus", 
                 "/api/v1/services/aigc/multimodal-generation/generation", requestMap)
                 .doOnNext(chunk -> {
                     if (!chunk.isDone()) {
@@ -686,7 +685,7 @@ public class OldReactorController implements InitializingBean {
         inputVoice.put("language_type","Chinese");
 
         requestMap.put("input",inputVoice);
-        AudioEvent audioEvent = HttpRequestProxy.multimodalAudioGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",requestMap);
+        AudioEvent audioEvent = AIAgentUtil.multimodalAudioGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",requestMap);
 
 
 
