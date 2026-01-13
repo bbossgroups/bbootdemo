@@ -24,6 +24,7 @@ import org.frameworkset.spi.ai.util.AudioDataBuilder;
 import org.frameworkset.spi.ai.util.MessageBuilder;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
 import org.frameworkset.util.annotations.RequestBody;
+import org.frameworkset.util.annotations.RequestParam;
 import org.frameworkset.util.annotations.ResponseBody;
 import org.frameworkset.web.multipart.MultipartFile;
 import org.slf4j.Logger;
@@ -42,7 +43,35 @@ public class ReactorController implements InitializingBean {
      
     // 多轮会话记忆窗口：使用静态List变量模拟存储会话记忆（实际项目中建议使用数据库）
     static List<Map<String, Object>> sessionMemory = new ArrayList<>();
+    /**
+     * http://127.0.0.1:808/demoproject/chatpost.html
+     * http://127.0.0.1:808/demoproject/reactor/deepseekChat.api?q=%E7%94%A8Java%E8%A7%A3%E9%87%8AReactor%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%BC%8F
+     * @param questions
+     * @return
+     */
+    public Flux<String> deepseekChat(@RequestBody Map<String,Object> questions, @RequestParam String q) {
+        String message = questions != null ?(String)questions.get("message"):q;
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("model", "deepseek-chat");
 
+        List<Map<String, String>> messages = new ArrayList<>();
+        Map<String, String> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", message);
+        messages.add(userMessage);
+
+        requestMap.put("messages", messages);
+        requestMap.put("stream", true);
+        requestMap.put("max_tokens", 8192);
+        requestMap.put("temperature", 0.7);
+        return AIAgentUtil.streamChatCompletion("deepseek","/chat/completions",requestMap);
+//                .doOnSubscribe(subscription -> logger.info("开始订阅流..."))
+//                .doOnNext(chunk -> System.out.print(chunk))
+//                .doOnComplete(() -> logger.info("\n=== 流完成 ==="))
+//                .doOnError(error -> logger.error("错误: " + error.getMessage(),error));
+//                .subscribe();
+
+    }
      /**
      * 使用标准化API实现流式异步/同步智能问答功能，带背压案例 和多轮会话记忆功能（完善版）
      * http://127.0.0.1/demoproject/chatBackuppressSession.html
