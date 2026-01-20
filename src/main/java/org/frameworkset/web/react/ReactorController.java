@@ -18,6 +18,7 @@ package org.frameworkset.web.react;
 import com.frameworkset.util.SimpleStringUtil;
 import org.frameworkset.spi.InitializingBean;
 import org.frameworkset.spi.ai.AIAgent;
+import org.frameworkset.spi.ai.material.StoreFilePathFunction;
 import org.frameworkset.spi.ai.model.*;
 import org.frameworkset.spi.ai.util.AIAgentUtil;
 import org.frameworkset.spi.ai.util.AudioDataBuilder;
@@ -347,7 +348,12 @@ public class ReactorController implements InitializingBean {
             message = "生成一颗桂花树";
         }
         ImageAgentMessage request = new ImageAgentMessage();
-        
+        request.setStoreFilePathFunction(new StoreFilePathFunction() {
+            @Override
+            public String getStoreFilePath(String imageUrl) {
+                return "image/"+SimpleStringUtil.getUUID32() +".jpg";
+            }
+        });
         request.setMessage( message);
         ImageEvent data = null;
         AIAgent aiAgent = new AIAgent();
@@ -361,18 +367,16 @@ public class ReactorController implements InitializingBean {
             request.addParameter("size", "2k");
             request.addParameter("watermark", true);
             completionsUrl = "/api/v3/images/generations";
-            data = aiAgent.genImage("volcengine","/api/v3/images/generations",request);
         }
-        else if(selectedModel.equals("九天")){
+        else if(selectedModel.equals("jiutian")){
             //字节火山引擎
             request.setModelType(AIConstants.AI_MODEL_TYPE_JIUTIAN);
-            request.setModel( "doubao-seedream-4-5-251128");
-            request.addParameter("sequential_image_generation", "disabled");
-            request.addParameter("response_format", "url");
-            request.addParameter("size", "2k");
-            request.addParameter("watermark", true);
-            completionsUrl = "/api/v3/images/generations";
-            data = aiAgent.genImage("volcengine","/api/v3/images/generations",request);
+            request.setModel( "cntxt2image");
+            request.addMapParameter("image", "style","watercolor");
+            request.addMapParameter("image", "ratio","3:4");
+            request.addMapParameter("image", "waterMarkLevel",0);
+            
+            completionsUrl = "/largemodel/moma/api/v3/images/generations";
         }
         else{
             
@@ -394,6 +398,102 @@ public class ReactorController implements InitializingBean {
         ret.put("imageUrl",imageUrl);
         return ret;
         
+    }
+
+
+    /**
+     * 根据图文修改图片
+     * @param questions
+     * @return
+     * @throws InterruptedException
+     */
+
+    public @ResponseBody Map genImageFromImage(@RequestBody Map<String,Object> questions) throws InterruptedException {
+        String selectedModel = (String)questions.get("selectedModel");
+
+        String message  = null;
+        message = questions != null?(String)questions.get("message"):null;
+        if(SimpleStringUtil.isEmpty( message)){
+            message = "生成一颗桂花树";
+        }
+        ImageAgentMessage request = new ImageAgentMessage();
+        request.setStoreFilePathFunction(new StoreFilePathFunction() {
+            @Override
+            public String getStoreFilePath(String imageUrl) {
+                return "image/"+SimpleStringUtil.getUUID32() +".jpg";
+            }
+        });
+
+        List<String> imagesBase64  = (List)questions.get("imagesBase64");
+        String imageUrl = (String)questions.get("imageUrl");
+        if(imageUrl != null) {
+            imageUrl = imageUrl.trim();
+        }
+
+
+
+
+        if(SimpleStringUtil.isNotEmpty(imageUrl)) {
+            request.addImageUrl(imageUrl);
+        }
+        if(SimpleStringUtil.isNotEmpty(imagesBase64)) {
+            for(String tmp:imagesBase64) {
+                request.addImageUrl(tmp);
+//                Map<String, Object> requestMap = new HashMap<>();
+//                requestMap.put("model", "LLMImage2Text");
+//                requestMap.put("image",tmp);
+//                requestMap.put("prompt", message);
+//                requestMap.put("stream", true);
+//                String rsp = HttpRequestProxy.httpPostforString("jiutian", "/largemodel/moma/api/v3/image/text", requestMap);
+//                logger.info(rsp);
+            }
+
+
+        }
+        request.setMessage( message);
+        ImageEvent data = null;
+        AIAgent aiAgent = new AIAgent();
+        String completionsUrl = null;
+        if(selectedModel.equals("volcengine")){
+            //字节火山引擎
+            request.setModelType(AIConstants.AI_MODEL_TYPE_DOUBAO);
+            request.setModel( "doubao-seedream-4-5-251128");
+            request.addParameter("sequential_image_generation", "disabled");
+            request.addParameter("response_format", "url");
+            request.addParameter("size", "2k");
+            request.addParameter("watermark", true);
+            completionsUrl = "/api/v3/images/generations";
+        }
+        else if(selectedModel.equals("jiutian")){
+            //字节火山引擎
+            request.setModelType(AIConstants.AI_MODEL_TYPE_JIUTIAN);
+            request.setModel( "cntxt2image");
+            completionsUrl = "/largemodel/moma/api/v3/images/generations";
+        }
+        else{
+
+            //阿里百炼
+            //通过在http.modelType指定全局模型适配器类型，亦可以在ImageAgentMessage对象设置请求级别modelType模型适配器类型（优先级高于全局模型适配器类型）
+            request.setModelType(AIConstants.AI_MODEL_TYPE_QWEN);
+            request.setModel( "qwen-image-edit-max-2026-01-16");
+            request.addParameter("n",2);
+            request.addParameter("prompt_extend",true);
+            request.addParameter("watermark",false);
+            request.addParameter("size","1536*1024");
+            ///api/v1/services/aigc/multimodal-generation/generation
+            completionsUrl = "/api/v1/services/aigc/multimodal-generation/generation";
+
+        }
+        data = aiAgent.genImage(selectedModel,completionsUrl,request);
+        String newimageUrl = data.getImageUrl();
+
+        Map ret = new HashMap();
+        ret.put("imageUrl",newimageUrl);
+        ret.put("imageUrls",data.getImageUrls());
+        ret.put("response",data.getResponse());
+        ret.put("contentEvent",data.getContentEvent());
+        return ret;
+
     }
 
 
