@@ -458,7 +458,9 @@ public class ReactorController implements InitializingBean {
             //字节火山引擎
             request.setModelType(AIConstants.AI_MODEL_TYPE_DOUBAO);
             request.setModel( "doubao-seedream-4-5-251128");
-            request.addParameter("sequential_image_generation", "disabled");
+            request.addParameter("sequential_image_generation", "disabled");//生成单图
+//            request.addParameter("sequential_image_generation", "auto");//生成多图
+//            request.addMapParameter("sequential_image_generation_options","max_images",4);
             request.addParameter("response_format", "url");
             request.addParameter("size", "2k");
             request.addParameter("watermark", true);
