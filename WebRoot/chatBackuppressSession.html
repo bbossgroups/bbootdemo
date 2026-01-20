@@ -86,6 +86,9 @@
         <!-- 新增stream控制参数 -->
         <input type="checkbox" id="stream-checkbox" checked>
         <label for="stream-checkbox">启用流式输出</label>
+        <!-- 新增多图生成控制参数 -->
+        <input type="checkbox" id="multi-image-checkbox">
+        <label for="multi-image-checkbox">生成多图</label>
     </div>
 
     <button id="send-btn">发送</button>
@@ -150,6 +153,9 @@
             this.queryTaskBtn = document.getElementById('query-task-btn');
             this.taskResultContainer = document.getElementById('task-result-container');
             
+            // 在 constructor 中添加多图控制参数属性
+            this.multiImageCheckbox = document.getElementById('multi-image-checkbox');
+
             // 在 CONTENT 和 REASONING_CONTENT 后面添加
             this.AUDIO_CONTENT = 2;
 
@@ -204,18 +210,28 @@
             if (this.modelType === 'VL' || this.modelType === 'IMAGE2IMG') {
                 this.uploadContainer.style.display = 'block';
                 this.audioInputContainer.style.display = 'none';
+
+                document.querySelector('label[for="multi-image-checkbox"]').style.display = 'inline';
+                this.multiImageCheckbox.style.display = 'inline';
                 // 设置问题输入框固定宽度
                 this.questionInput.style.flex = 'unset';
                 this.questionInput.style.width = '200px';
             } else if (this.modelType === 'AUDIO') {
                 this.uploadContainer.style.display = 'none';
                 this.audioInputContainer.style.display = 'flex';
+
+                // 隐藏多图生成控制参数
+                document.querySelector('label[for="multi-image-checkbox"]').style.display = 'none';
+                this.multiImageCheckbox.style.display = 'none';
                 // 设置问题输入框固定宽度
                 this.questionInput.style.flex = 'unset';
                 this.questionInput.style.width = '200px';
             } else {
                 this.uploadContainer.style.display = 'none';
                 this.audioInputContainer.style.display = 'none';
+                // 隐藏多图生成控制参数
+                document.querySelector('label[for="multi-image-checkbox"]').style.display = 'none';
+                this.multiImageCheckbox.style.display = 'none';
                 // 恢复问题输入框弹性宽度
                 this.questionInput.style.flex = '1';
                 this.questionInput.style.width = '';
@@ -238,18 +254,29 @@
                 this.uploadContainer.style.display = 'block';
                 this.questionInput.style.flex = 'unset';
                 this.questionInput.style.width = '200px';
+                document.querySelector('label[for="multi-image-checkbox"]').style.display = 'inline';
+                this.multiImageCheckbox.style.display = 'inline';
             } else if (this.modelType === 'AUDIO') {
                 this.audioInputContainer.style.display = 'flex';
                 this.questionInput.style.flex = 'unset';
                 this.questionInput.style.width = '200px';
+                // 隐藏多图生成控制参数
+                document.querySelector('label[for="multi-image-checkbox"]').style.display = 'none';
+                this.multiImageCheckbox.style.display = 'none';
             } else if (this.modelType === 'VIDEO') {
                 this.videoTaskContainer.style.display = 'block';
                 this.questionInput.style.flex = 'unset';
                 this.questionInput.style.width = '200px';
+                // 隐藏多图生成控制参数
+                document.querySelector('label[for="multi-image-checkbox"]').style.display = 'none';
+                this.multiImageCheckbox.style.display = 'none';
             } else {
                 this.questionInput.style.flex = '1';
                 this.questionInput.style.width = '';
                 this.imageUrlInput.value = '';
+                // 隐藏多图生成控制参数
+                document.querySelector('label[for="multi-image-checkbox"]').style.display = 'none';
+                this.multiImageCheckbox.style.display = 'none';
             }
         }
 
@@ -440,6 +467,8 @@
             this.modelType = this.modelSelect.options[this.modelSelect.selectedIndex].getAttribute('type');
             if (this.modelType === 'VL' || this.modelType === 'IMAGE2IMG') {
                 this.uploadContainer.style.display = 'block';
+                document.querySelector('label[for="multi-image-checkbox"]').style.display = 'inline';
+                this.multiImageCheckbox.style.display = 'inline';
                 // 设置问题输入框固定宽度
                 this.questionInput.style.flex = 'unset';
                 this.questionInput.style.width = '200px';
@@ -450,6 +479,9 @@
                 this.questionInput.style.width = '';
                 // 清空图片地址
                 this.imageUrlInput.value = '';
+                // 隐藏多图生成控制参数
+                document.querySelector('label[for="multi-image-checkbox"]').style.display = 'none';
+                this.multiImageCheckbox.style.display = 'none';
             }
         }
 
@@ -585,6 +617,7 @@
                 else if (this.imagesBase64Data.length > 0) {
                     requestBody.imagesBase64 = this.imagesBase64Data; // 发送所有图片
                 }
+                requestBody.generateMultipleImages = this.multiImageCheckbox.checked;
             }
 
             this.clearAllImages();
