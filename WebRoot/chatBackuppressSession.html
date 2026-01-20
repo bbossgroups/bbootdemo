@@ -155,7 +155,8 @@
             
             // 在 constructor 中添加多图控制参数属性
             this.multiImageCheckbox = document.getElementById('multi-image-checkbox');
-
+            document.querySelector('label[for="multi-image-checkbox"]').style.display = 'none';
+            this.multiImageCheckbox.style.display = 'none';
             // 在 CONTENT 和 REASONING_CONTENT 后面添加
             this.AUDIO_CONTENT = 2;
 
@@ -207,16 +208,23 @@
         
         toggleAudioInput() {
             this.modelType = this.modelSelect.options[this.modelSelect.selectedIndex].getAttribute('type');
-            if (this.modelType === 'VL' || this.modelType === 'IMAGE2IMG') {
+            if (this.modelType === 'VL' || this.modelType === 'IMAGE2IMG' || this.modelType === 'IMAGE') {
                 this.uploadContainer.style.display = 'block';
                 this.audioInputContainer.style.display = 'none';
 
-                document.querySelector('label[for="multi-image-checkbox"]').style.display = 'inline';
-                this.multiImageCheckbox.style.display = 'inline';
+                // 控制多图生成参数的显示
+                if (this.modelType === 'IMAGE2IMG' || this.modelType === 'IMAGE') {
+                    document.querySelector('label[for="multi-image-checkbox"]').style.display = 'inline';
+                    this.multiImageCheckbox.style.display = 'inline';
+                } else {
+                    document.querySelector('label[for="multi-image-checkbox"]').style.display = 'none';
+                    this.multiImageCheckbox.style.display = 'none';
+                }
                 // 设置问题输入框固定宽度
                 this.questionInput.style.flex = 'unset';
                 this.questionInput.style.width = '200px';
-            } else if (this.modelType === 'AUDIO') {
+            } 
+            else if (this.modelType === 'AUDIO') {
                 this.uploadContainer.style.display = 'none';
                 this.audioInputContainer.style.display = 'flex';
 
@@ -250,12 +258,18 @@
             this.videoTaskContainer.style.display = 'none';
 
             // 根据模型类型显示对应区域
-            if (this.modelType === 'VL'|| this.modelType === 'IMAGE2IMG') {
+            if (this.modelType === 'VL'|| this.modelType === 'IMAGE2IMG' || this.modelType === 'IMAGE') {
                 this.uploadContainer.style.display = 'block';
                 this.questionInput.style.flex = 'unset';
                 this.questionInput.style.width = '200px';
-                document.querySelector('label[for="multi-image-checkbox"]').style.display = 'inline';
-                this.multiImageCheckbox.style.display = 'inline';
+                // 控制多图生成参数的显示
+                if (this.modelType === 'IMAGE2IMG' || this.modelType === 'IMAGE') {
+                    document.querySelector('label[for="multi-image-checkbox"]').style.display = 'inline';
+                    this.multiImageCheckbox.style.display = 'inline';
+                } else {
+                    document.querySelector('label[for="multi-image-checkbox"]').style.display = 'none';
+                    this.multiImageCheckbox.style.display = 'none';
+                }
             } else if (this.modelType === 'AUDIO') {
                 this.audioInputContainer.style.display = 'flex';
                 this.questionInput.style.flex = 'unset';
@@ -465,10 +479,16 @@
 
         toggleImageInput() {
             this.modelType = this.modelSelect.options[this.modelSelect.selectedIndex].getAttribute('type');
-            if (this.modelType === 'VL' || this.modelType === 'IMAGE2IMG') {
+            if (this.modelType === 'VL' || this.modelType === 'IMAGE2IMG' || this.modelType === 'IMAGE') {
                 this.uploadContainer.style.display = 'block';
-                document.querySelector('label[for="multi-image-checkbox"]').style.display = 'inline';
-                this.multiImageCheckbox.style.display = 'inline';
+                // 控制多图生成参数的显示
+                if (this.modelType === 'IMAGE2IMG' || this.modelType === 'IMAGE') {
+                    document.querySelector('label[for="multi-image-checkbox"]').style.display = 'inline';
+                    this.multiImageCheckbox.style.display = 'inline';
+                } else {
+                    document.querySelector('label[for="multi-image-checkbox"]').style.display = 'none';
+                    this.multiImageCheckbox.style.display = 'none';
+                }
                 // 设置问题输入框固定宽度
                 this.questionInput.style.flex = 'unset';
                 this.questionInput.style.width = '200px';
@@ -606,7 +626,10 @@
                 // 添加stream参数
                 enableStream: enableStream
             };
-
+            // 仅对IMAGE2IMG模型添加多图参数
+            if (this.modelType === 'IMAGE' || this.modelType === 'IMAGE2IMG') {
+                requestBody.generateMultipleImages = this.multiImageCheckbox.checked;
+            }
             // 根据模型类型添加相应的图片参数
             if (this.modelType === 'VL' || this.modelType === 'IMAGE2IMG') {
                 // 如果是URL模式且有输入URL，则使用URL
@@ -617,7 +640,6 @@
                 else if (this.imagesBase64Data.length > 0) {
                     requestBody.imagesBase64 = this.imagesBase64Data; // 发送所有图片
                 }
-                requestBody.generateMultipleImages = this.multiImageCheckbox.checked;
             }
 
             this.clearAllImages();
