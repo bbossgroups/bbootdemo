@@ -509,61 +509,6 @@ public class ReactorController implements InitializingBean {
     }
 
 
-    public @ResponseBody Map genImage1(@RequestBody Map<String,Object> questions) throws InterruptedException {
-
-        
-         
-        ImageAgentMessage request = new ImageAgentMessage();
-        //设置生成图片的文本内容（提示词）
-        String message  = "生成一美女";
-        request.setMessage( message);        
-        //设置字节火山引擎豆包图片生成模型
-        request.setModel( "doubao-seedream-4-5-251128");
-        
-        //设置字节火山引擎豆包图片生成模型特有参数
-        request.addParameter("sequential_image_generation", "disabled");
-        request.addParameter("response_format", "url");
-        request.addParameter("size", "2k");
-        request.addParameter("watermark", true);
-        //执行通用AI客户端工具标准化图片生成API，指定模型服务名称volcengine和字节火山引擎豆包图片生成模型服务地址，并提交图片生成请求参数request
-        ImageEvent data = AIAgentUtil.multimodalImageGeneration("volcengine","/api/v3/images/generations",request);
-        
-        //获取生成的图片url，可以直接在浏览器中展示
-        String imageUrl = data.getImageUrl();
-
-        Map ret = new HashMap();
-        ret.put("imageUrl",imageUrl);
-        return ret;
-
-    }
-
-    public @ResponseBody Map genImage2(@RequestBody Map<String,Object> questions) throws InterruptedException {
-
-
-
-        ImageAgentMessage request = new ImageAgentMessage();
-        //设置生成图片的文本内容（提示词）
-        String message  = "生成一位美女";
-        request.setMessage( message);
-        //设置通义千问图片生成模型
-        request.setModel( "qwen-image-plus");
-
-        //设置通义千问图片生成模型特有参数
-        request.addParameter("negative_prompt","");
-        request.addParameter("prompt_extend",true);
-        request.addParameter("watermark",false);
-        request.addParameter("size","1328*1328");
-        //执行通用AI客户端工具标准化图片生成API，指定模型服务名称qwenvlplus和通义千问图片图片生成模型服务地址，并提交图片生成请求参数request
-        ImageEvent data = AIAgentUtil.multimodalImageGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",request);
-
-        //获取生成的图片url，可以直接在浏览器中展示
-        String imageUrl = data.getImageUrl();
-
-        Map ret = new HashMap();
-        ret.put("imageUrl",imageUrl);
-        return ret;
-
-    }
      
 	/**
      * 音频识别功能
@@ -676,6 +621,7 @@ public class ReactorController implements InitializingBean {
     /**
      * 音频生成服务
      http://127.0.0.1/demoproject/reactor/genAudioByqwentts.api
+     https://bailian.console.aliyun.com/cn-beijing/?spm=5176.29597918.J_SEsSjsNv72yRuRFS2VknO.2.74ba7b08ig5jxD&tab=doc#/doc/?type=model&url=2879134
      * @param questions
      * @return
      * @throws InterruptedException
@@ -689,25 +635,21 @@ public class ReactorController implements InitializingBean {
             message = "诗歌朗诵：床前明月光；疑似地上霜；举头望明月；低头思故乡。";
         }
 
-
-
-        Map<String, Object> requestMap = new HashMap<>();
-        requestMap.put("model", "qwen3-tts-flash");
-
-
-
-
-        Map<String,Object> inputVoice = new LinkedHashMap();
-        inputVoice.put("text",message);
-        inputVoice.put("voice","Cherry");
-        inputVoice.put("language_type","Chinese");
-
-        requestMap.put("input",inputVoice);
-        AudioEvent audioEvent = AIAgentUtil.multimodalAudioGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",requestMap);
-
-
-
-//
+        AudioAgentMessage audioAgentMessage = new AudioAgentMessage();
+        audioAgentMessage.setMessage( message);
+        audioAgentMessage.setModel("qwen3-tts-flash");
+        audioAgentMessage.addParameter("voice","Cherry");
+        audioAgentMessage.addParameter("language_type","Chinese");
+        //设置音频下载相对路径，将和endpoint组合形成音频文件播放地址
+        audioAgentMessage.setStoreFilePathFunction(new StoreFilePathFunction() {
+            @Override
+            public String getStoreFilePath(String imageUrl) {
+                return "audio/"+SimpleStringUtil.getUUID32() +".wav";
+            }
+        });
+    
+        AIAgent aiAgent = new AIAgent();
+        AudioEvent audioEvent = aiAgent.genAudio("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",audioAgentMessage);
         return audioEvent;
     }
 
