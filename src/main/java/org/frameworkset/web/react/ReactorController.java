@@ -120,7 +120,14 @@ public class ReactorController implements InitializingBean {
         }
         else if(selectedModel.equals("kimi")){
             completionsUrl =  "/v1/chat/completions";
-            model = "kimi-k2-turbo-preview";
+            
+            
+            if(deepThink == null || !deepThink) {
+                model = "kimi-k2-turbo-preview";
+            }
+            else {
+                model = "kimi-k2-thinking";
+            }
         }
         else {
             model = "qwen3-max";
