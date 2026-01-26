@@ -18,6 +18,7 @@ package org.frameworkset.web.react;
 import com.frameworkset.util.SimpleStringUtil;
 import org.frameworkset.spi.InitializingBean;
 import org.frameworkset.spi.ai.AIAgent;
+import org.frameworkset.spi.ai.material.ReponseStoreFilePathFunction;
 import org.frameworkset.spi.ai.material.StoreFilePathFunction;
 import org.frameworkset.spi.ai.model.*;
 import org.frameworkset.spi.ai.util.AIAgentUtil;
@@ -129,6 +130,18 @@ public class ReactorController implements InitializingBean {
                 model = "kimi-k2-thinking";
             }
         }
+        else if(selectedModel.equals("zhipu")){
+            completionsUrl =  "/api/paas/v4/chat/completions";
+
+            model = "glm-4.7";
+            if(deepThink != null && deepThink) {
+                chatAgentMessage.addMapParameter("thinking","type","enabled");
+            }
+            else{
+                chatAgentMessage.addMapParameter("thinking","type","disabled");
+            }
+        }
+        
         else {
             model = "qwen3-max";
             completionsUrl =  "/compatible-mode/v1/chat/completions";//通义千问LLM模型服务地址
@@ -247,6 +260,18 @@ public class ReactorController implements InitializingBean {
             imageVLAgentMessage.setTemperature(0.6);
 
         }
+        else if(selectedModel.equals("zhipu")){//字节豆包
+            completionsUrl =  "/api/paas/v4/chat/completions";
+            model = "glm-4.6v";
+            //支持思考程度可调节（reasoning effort）：分为 minimal、low、medium、high 四种模式，其中minimal为不思考
+            if(deepThink != null && deepThink) {
+                imageVLAgentMessage.addMapParameter("thinking","type","enabled");
+            }
+            else{
+                imageVLAgentMessage.addMapParameter("thinking","type","disabled");
+            }
+        }
+        
         else if(selectedModel.equals("jiutian")){//字节豆包
             //九天模型参考文档：https://jiutian.10086.cn/portal/common-helpcenter#/document/1160?platformCode=DMX_TYZX
             completionsUrl =  "/largemodel/moma/api/v3/image/text";
@@ -385,7 +410,7 @@ public class ReactorController implements InitializingBean {
         String completionsUrl = null;
         if(selectedModel.equals("volcengine")){
             //字节火山引擎
-            request.setModelType(AIConstants.AI_MODEL_TYPE_DOUBAO);
+//            request.setModelType(AIConstants.AI_MODEL_TYPE_DOUBAO);
             request.setModel( "doubao-seedream-4-5-251128");
             if(generateMultipleImages) {
                 request.addParameter("sequential_image_generation", "disabled");//生成单图
@@ -401,13 +426,19 @@ public class ReactorController implements InitializingBean {
         }
         else if(selectedModel.equals("jiutian")){
             //字节火山引擎
-            request.setModelType(AIConstants.AI_MODEL_TYPE_JIUTIAN);
             request.setModel( "cntxt2image");
             request.addMapParameter("image", "style","watercolor");
             request.addMapParameter("image", "ratio","3:4");
             request.addMapParameter("image", "waterMarkLevel",0);
             
             completionsUrl = "/largemodel/moma/api/v3/images/generations";
+        }
+        else if(selectedModel.equals("zhipu")){
+            //字节火山引擎
+            request.setModel( "glm-image");
+            request.addParameter("size","1280x1280");           
+
+            completionsUrl = "/api/paas/v4/images/generations";
         }
         else{
             
@@ -651,31 +682,50 @@ public class ReactorController implements InitializingBean {
      * @return
      * @throws InterruptedException
      */
-    public @ResponseBody AudioEvent genAudioByqwentts(@RequestBody Map<String,Object> questions) throws InterruptedException {
-//        String selectedModel = (String)questions.get("selectedModel");
+    public @ResponseBody AudioEvent genAudioByqwentts(@RequestBody Map<String,Object> questions) {
+        String selectedModel = (String)questions.get("selectedModel");
 
         String message  = null;
         message = questions != null?(String)questions.get("message"):null;
         if(SimpleStringUtil.isEmpty( message)){
             message = "诗歌朗诵：床前明月光；疑似地上霜；举头望明月；低头思故乡。";
         }
-
         AudioAgentMessage audioAgentMessage = new AudioAgentMessage();
-        audioAgentMessage.setMessage( message);
-        audioAgentMessage.setModel("qwen3-tts-flash");
-        audioAgentMessage.setStream( true);
-        audioAgentMessage.addParameter("voice","Cherry");
-        audioAgentMessage.addParameter("language_type","Chinese");
-        //设置音频下载相对路径，将和endpoint组合形成音频文件播放地址
-        audioAgentMessage.setStoreFilePathFunction(new StoreFilePathFunction() {
-            @Override
-            public String getStoreFilePath(String imageUrl) {
-                return "audio/"+SimpleStringUtil.getUUID32() +".wav";
-            }
-        });
-    
+        audioAgentMessage.setMessage(message);
+        String completionsUrl = null;
+        String model = null;
+        if(selectedModel.equals("qwenvlplus")) {
+            completionsUrl = "/api/v1/services/aigc/multimodal-generation/generation";
+            model = "qwen3-tts-flash";
+            audioAgentMessage.addParameter("voice", "Cherry")
+                    .addParameter("language_type", "Chinese")
+                    //设置音频下载相对路径，将和endpoint组合形成音频文件播放地址
+                    .setStoreFilePathFunction(new StoreFilePathFunction() {
+                        @Override
+                        public String getStoreFilePath(String imageUrl) {
+                            return "audio/"+SimpleStringUtil.getUUID32() +".wav";
+                        }
+                    });
+        }
+        else if(selectedModel.equals("zhipu")) {
+            //https://docs.bigmodel.cn/api-reference/%E6%A8%A1%E5%9E%8B-api/%E6%96%87%E6%9C%AC%E8%BD%AC%E8%AF%AD%E9%9F%B3
+            completionsUrl = "/api/paas/v4/audio/speech";
+            model = "glm-tts";
+            audioAgentMessage.addParameter("voice", "female")
+                    .addParameter("response_format", "wav")
+                    .addParameter("speed", 1.0)
+                    .addParameter("volume", 1.0)            
+                    //设置音频下载相对路径，将和endpoint组合形成音频文件播放地址            
+                    .setStoreFilePathFunction(new ReponseStoreFilePathFunction() {
+                        @Override
+                        public String getStoreFilePath(String imageUrl) {
+                            return "audio/"+SimpleStringUtil.getUUID32() +".wav";
+                        }
+                    });
+        }
+        audioAgentMessage.setModel(model);    
         AIAgent aiAgent = new AIAgent();
-        AudioEvent audioEvent = aiAgent.genAudio("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",audioAgentMessage);
+        AudioEvent audioEvent = aiAgent.genAudio(selectedModel,completionsUrl,audioAgentMessage);
         return audioEvent;
     }
 
@@ -688,31 +738,49 @@ public class ReactorController implements InitializingBean {
      * @throws InterruptedException
      */
     public Flux<List<ServerEvent>> streamGenAudioByqwentts(@RequestBody Map<String,Object> questions) throws InterruptedException, FileNotFoundException {
-//        String selectedModel = (String)questions.get("selectedModel");
+        String selectedModel = (String)questions.get("selectedModel");
 
         String message  = null;
         message = questions != null?(String)questions.get("message"):null;
         if(SimpleStringUtil.isEmpty( message)){
             message = "诗歌朗诵：床前明月光；疑似地上霜；举头望明月；低头思故乡。";
         }
-
+        String completionsUrl = null;
+        String model = null;
         AudioAgentMessage audioAgentMessage = new AudioAgentMessage();
-        audioAgentMessage.setMessage( message);
-        audioAgentMessage.setModel("qwen3-tts-flash");
-        audioAgentMessage.setStream( true);
-        audioAgentMessage.addParameter("voice","Cherry");
-        audioAgentMessage.addParameter("language_type","Chinese");
-        //设置音频下载相对路径，将和endpoint组合形成音频文件播放地址
-        audioAgentMessage.setStoreFilePathFunction(new StoreFilePathFunction() {
-            @Override
-            public String getStoreFilePath(String imageUrl) {
-                return "audio/"+SimpleStringUtil.getUUID32() +".wav";
-            }
-        });
-
+        audioAgentMessage.setMessage(message);
+        if(selectedModel.equals("qwenvlplus")) {
+           
+            model = "qwen3-tts-flash";
+            completionsUrl = "/api/v1/services/aigc/multimodal-generation/generation";            
+            audioAgentMessage.addParameter("voice", "Cherry")
+                    .addParameter("language_type", "Chinese");
+            //设置音频下载相对路径，将和endpoint组合形成音频文件播放地址
+            audioAgentMessage.setStoreFilePathFunction(new StoreFilePathFunction() {
+                @Override
+                public String getStoreFilePath(String imageUrl) {
+                    return "audio/" + SimpleStringUtil.getUUID32() + ".wav";
+                }
+            });
+        }
+        
+        else if(selectedModel.equals("zhipu")) {
+            //https://docs.bigmodel.cn/api-reference/%E6%A8%A1%E5%9E%8B-api/%E6%96%87%E6%9C%AC%E8%BD%AC%E8%AF%AD%E9%9F%B3
+            completionsUrl = "/api/paas/v4/audio/speech";
+            model = "glm-tts";
+            audioAgentMessage.addParameter("voice", "female")
+                    .addParameter("response_format", "pcm")
+                    .addParameter("encode_format", "base64")
+                    .addParameter("speed", 1.0)
+                    .addParameter("volume", 1.0);
+             
+        }
+        
+        audioAgentMessage.setModel(model);
+        audioAgentMessage.setStream(true);
         
         AIAgent aiAgent = new AIAgent();
-        Flux<ServerEvent> flux = aiAgent.streamAudioGen("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",audioAgentMessage);
+        Flux<ServerEvent> flux = aiAgent.streamAudioGen(selectedModel,completionsUrl,audioAgentMessage);
 //        FileOutputStream fos = new FileOutputStream("C:\\data\\ai\\aigenfiles\\audio/audio.wav");
         return flux
 //                .doOnNext(chunk -> {
@@ -735,16 +803,13 @@ public class ReactorController implements InitializingBean {
                             event.addExtendData("title","bboss官网");
                             
                         }
-                        if(event.isDone()){
+                        if(event.isDone() && event.getUrl() != null){
                             event.addExtendData("url",event.getUrl());
                             event.addExtendData("title","下载音频");
 
                         }
                         boolean execute = false;
-                        if(event.isDone()){
-                            
-                        }
-                        else if(execute){
+                        if(!event.isDone() && execute){
                             try {
                                 //直接在服务端播放语音
 
