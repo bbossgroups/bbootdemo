@@ -33,6 +33,13 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.SourceDataLine;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -110,6 +117,10 @@ public class ReactorController implements InitializingBean {
         else if(selectedModel.equals("jiutian")){
             completionsUrl =  "/largemodel/moma/api/v3/chat/completions";
             model = "jiutian-lan-comv3";
+        }
+        else if(selectedModel.equals("kimi")){
+            completionsUrl =  "/v1/chat/completions";
+            model = "kimi-k2-turbo-preview";
         }
         else {
             model = "qwen3-max";
@@ -221,6 +232,13 @@ public class ReactorController implements InitializingBean {
             imageVLAgentMessage.addParameter("reasoning_effort", "medium");
             imageVLAgentMessage.addParameter("max_completion_tokens", 65535);
              
+        }
+        else if(selectedModel.equals("kimi")){//字节豆包
+            completionsUrl =  "/v1/chat/completions";
+            model = "moonshot-v1-8k-vision-preview";
+            //支持思考程度可调节（reasoning effort）：分为 minimal、low、medium、high 四种模式，其中minimal为不思考
+            imageVLAgentMessage.setTemperature(0.6);
+
         }
         else if(selectedModel.equals("jiutian")){//字节豆包
             //九天模型参考文档：https://jiutian.10086.cn/portal/common-helpcenter#/document/1160?platformCode=DMX_TYZX
@@ -638,6 +656,7 @@ public class ReactorController implements InitializingBean {
         AudioAgentMessage audioAgentMessage = new AudioAgentMessage();
         audioAgentMessage.setMessage( message);
         audioAgentMessage.setModel("qwen3-tts-flash");
+        audioAgentMessage.setStream( true);
         audioAgentMessage.addParameter("voice","Cherry");
         audioAgentMessage.addParameter("language_type","Chinese");
         //设置音频下载相对路径，将和endpoint组合形成音频文件播放地址
@@ -651,6 +670,107 @@ public class ReactorController implements InitializingBean {
         AIAgent aiAgent = new AIAgent();
         AudioEvent audioEvent = aiAgent.genAudio("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",audioAgentMessage);
         return audioEvent;
+    }
+
+    /**
+     * 音频生成服务
+     http://127.0.0.1/demoproject/reactor/genAudioByqwentts.api
+     https://bailian.console.aliyun.com/cn-beijing/?spm=5176.29597918.J_SEsSjsNv72yRuRFS2VknO.2.74ba7b08ig5jxD&tab=doc#/doc/?type=model&url=2879134
+     * @param questions
+     * @return
+     * @throws InterruptedException
+     */
+    public Flux<List<ServerEvent>> streamGenAudioByqwentts(@RequestBody Map<String,Object> questions) throws InterruptedException, FileNotFoundException {
+//        String selectedModel = (String)questions.get("selectedModel");
+
+        String message  = null;
+        message = questions != null?(String)questions.get("message"):null;
+        if(SimpleStringUtil.isEmpty( message)){
+            message = "诗歌朗诵：床前明月光；疑似地上霜；举头望明月；低头思故乡。";
+        }
+
+        AudioAgentMessage audioAgentMessage = new AudioAgentMessage();
+        audioAgentMessage.setMessage( message);
+        audioAgentMessage.setModel("qwen3-tts-flash");
+        audioAgentMessage.setStream( true);
+        audioAgentMessage.addParameter("voice","Cherry");
+        audioAgentMessage.addParameter("language_type","Chinese");
+        //设置音频下载相对路径，将和endpoint组合形成音频文件播放地址
+        audioAgentMessage.setStoreFilePathFunction(new StoreFilePathFunction() {
+            @Override
+            public String getStoreFilePath(String imageUrl) {
+                return "audio/"+SimpleStringUtil.getUUID32() +".wav";
+            }
+        });
+
+        
+        AIAgent aiAgent = new AIAgent();
+        Flux<ServerEvent> flux = aiAgent.streamAudioGen("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",audioAgentMessage);
+//        FileOutputStream fos = new FileOutputStream("C:\\data\\ai\\aigenfiles\\audio/audio.wav");
+        return flux
+//                .doOnNext(chunk -> {
+//                    if (!chunk.isDone()) {
+//                        logger.info(chunk.getData());
+//                        
+//                    }
+//                    else{
+//                        
+//                    }
+//                })
+                .limitRate(5) //背压：限制请求速率
+                .buffer(3) //缓冲：每3个元素缓冲一次
+                .doOnNext(bufferedEvents -> {
+                    // 处理模型响应并更新会话记忆
+                    for(ServerEvent event : bufferedEvents) {
+                        //答案前后都可以添加链接和标题，实现相关知识资料链接
+                        if(event.isFirst()){
+                            event.addExtendData("url","https://www.bbossgroups.com");
+                            event.addExtendData("title","bboss官网");
+                            
+                        }
+                        if(event.isDone()){
+                            event.addExtendData("url",event.getUrl());
+                            event.addExtendData("title","下载音频");
+
+                        }
+                        boolean execute = false;
+                        if(event.isDone()){
+                            
+                        }
+                        else if(execute){
+                            try {
+                                //直接在服务端播放语音
+
+                                byte[] audioBytes = Base64.getDecoder().decode(event.getData());
+                                // 2. 配置音频格式（根据API返回的音频格式调整）
+                                AudioFormat format = new AudioFormat(
+                                        AudioFormat.Encoding.PCM_SIGNED,
+                                        24000, // 采样率（需与API返回格式一致）
+                                        16,    // 采样位数
+                                        1,     // 声道数
+                                        2,     // 帧大小（位数/字节数）
+                                        24000, // 数据传输率（需与采样率一致）
+                                        false  // 是否压缩
+                                );
+
+                                // 3. 实时播放音频数据
+                                DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+                                try (SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info)) {
+                                    if (line != null) {
+                                        line.open(format);
+                                        line.start();
+                                        line.write(audioBytes, 0, audioBytes.length);
+                                        line.drain();
+                                    }
+                                }
+                            }
+                            catch (Exception e){
+                                logger.error("播放音频数据异常",e);
+                            }
+                        }
+                         
+                    }
+                });
     }
 
 

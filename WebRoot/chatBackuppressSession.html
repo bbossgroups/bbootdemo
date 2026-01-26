@@ -53,11 +53,13 @@
             <option type="LLM" value="deepseek" selected>DeepSeek-LLM</option>
             <option type="LLM" value="guiji">通义千问-LLM</option>
             <option type="LLM" value="jiutian">九天-LLM</option>
+            <option type="LLM" value="kimi">kimi-LLM</option>
             
             <option type="VL" value="jiutian">LLMImage2Text（九天图片识别）</option>
             <option type="VL" value="qwenvlplus">QwenVL Plus（阿里百炼图片识别）</option>
             <option type="VL" value="volcengine">doubao-seed-1.8（豆包图片识别）</option>
             <option type="VL" value="guiji">QwenVL32B（硅基流动图片识别）</option>
+            <option type="VL" value="kimi">kimi（Kimi图片识别）</option>
             
             <option type="IMAGE" value="jiutian">cntxt2image（九天图片生成）</option>
             <option type="IMAGE" value="qwenvlplus">qwen-image-plus（百炼图片生成）</option>
@@ -67,6 +69,7 @@
             <option type="IMAGE2IMG" value="volcengine">doubao-seedream-4.5（豆包火山引擎文图生图）</option>
             <option type="AUDIO" value="qwenvlplus">qwen3-asr-flash（百炼语音识别）</option>
             <option type="TTS" value="qwenvlplus">qwen3-tts-flash（百炼语音生成）</option>
+            <option type="TTS" stream="true" value="qwenvlplus">qwen3-tts-flash（百炼语音生成实时播放）</option>
             <option type="VIDEO" value="qwenvlplus">wan2.5-t2v-preview（百炼视频生成）</option>
 
         </select>
@@ -110,6 +113,10 @@
             this.abortController = null;
             this.isStreaming = false;
 
+            this.audioQueue = [];
+            this.isPlaying = false;
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
             this.chatContainer = document.getElementById('chat-container');
             this.questionInput = document.getElementById('question-input');
             this.resetCheckbox = document.getElementById('reset-checkbox');
@@ -120,6 +127,7 @@
             this.modelSelect = document.getElementById('model-select');
             let selectedOption = this.modelSelect.options[this.modelSelect.selectedIndex];
             this.modelType = selectedOption.getAttribute('type');
+            this.modelTypeStream = selectedOption.getAttribute('stream');
             this.uploadContainer = document.getElementById('upload-container');
             // this.imageInputContainer = document.getElementById('image-input-container');
             this.imageUrlInput = document.getElementById('image-url-input');
@@ -208,6 +216,7 @@
         
         toggleAudioInput() {
             this.modelType = this.modelSelect.options[this.modelSelect.selectedIndex].getAttribute('type');
+            this.modelTypeStream = this.modelSelect.options[this.modelSelect.selectedIndex].getAttribute('stream');
             if (this.modelType === 'VL' || this.modelType === 'IMAGE2IMG' || this.modelType === 'IMAGE') {
                 this.uploadContainer.style.display = 'block';
                 this.audioInputContainer.style.display = 'none';
@@ -252,6 +261,7 @@
         toggleVideoInput() {
             this.modelType = this.modelSelect.options[this.modelSelect.selectedIndex].getAttribute('type');
 
+            this.modelTypeStream = this.modelSelect.options[this.modelSelect.selectedIndex].getAttribute('stream');
             // 隐藏所有特殊输入区域
             this.uploadContainer.style.display = 'none';
             this.audioInputContainer.style.display = 'none';
@@ -479,6 +489,7 @@
 
         toggleImageInput() {
             this.modelType = this.modelSelect.options[this.modelSelect.selectedIndex].getAttribute('type');
+            this.modelTypeStream = this.modelSelect.options[this.modelSelect.selectedIndex].getAttribute('stream');
             if (this.modelType === 'VL' || this.modelType === 'IMAGE2IMG' || this.modelType === 'IMAGE') {
                 this.uploadContainer.style.display = 'block';
                 // 控制多图生成参数的显示
@@ -582,6 +593,9 @@
 
             // 千问语音生成服务地址
             const ttsurl = `reactor/genAudioByqwentts.api`;
+
+            // 千问实时播放语音生成服务地址
+            const streamttsurl = `reactor/streamGenAudioByqwentts.api`;
             let url;
 
             switch(this.modelType) {
@@ -602,7 +616,12 @@
                     url = audiourl;
                     break;
                 case 'TTS':
-                    url = ttsurl;
+                    if(this.modelTypeStream === 'true'){
+                        url = streamttsurl;
+                    }
+                    else{
+                        url = ttsurl;
+                    }
                     break;
                 case 'VIDEO':
                     url = `reactor/submitVideoByqwenwan.api`;
@@ -745,33 +764,319 @@
                     }
                     // 特殊处理TTS模型的响应
                     else if (this.modelType === 'TTS') {
-                        return response.json().then(data => {
-                            this.isStreaming = false;
+                        if(!this.modelTypeStream) {
+                            return response.json().then(data => {
+                                this.isStreaming = false;
+                                let botMessageElement = this.createBotMessageElement();
+
+                                // 显示生成的音频
+                                if (data && data.audioUrl) {
+                                    const audioContainer = document.createElement('div');
+
+                                    const audio = document.createElement('audio');
+                                    audio.src = data.audioUrl;
+                                    audio.controls = true;
+                                    audioContainer.appendChild(audio);
+
+                                    const downloadLink = document.createElement('a');
+                                    downloadLink.href = data.audioUrl;
+                                    downloadLink.download = 'tts-audio.wav';
+                                    downloadLink.textContent = '下载音频';
+                                    downloadLink.target = '_blank';
+                                    audioContainer.appendChild(downloadLink);
+
+                                    botMessageElement.appendChild(audioContainer);
+                                } else {
+                                    botMessageElement.textContent = '语音生成失败';
+                                }
+
+                                this.scrollToBottom();
+                            });
+                        }
+                        // 在 TTS 模型的响应处理部分，替换 else 分支中的 base64 编码语音流处理
+                        else {
+                            // 获取响应流
+                            const reader = response.body.getReader();
+                            const decoder = new TextDecoder();
                             let botMessageElement = this.createBotMessageElement();
+                            let accumulatedContent = '';
+                            let lineBuffer = '';
+                            let finishReason  = null;
+                            // 处理base64编码语音流片段播放:实时语音播放
+                        
+                             
+                            const audioContainer = document.createElement('div');
+                            
+                            // 添加下载链接
+                            const downloadLink = document.createElement('a');
+                            downloadLink.download = 'tts-stream-audio.wav';
+                            downloadLink.textContent = '下载音频';
+                            downloadLink.target = '_blank';
+                            audioContainer.appendChild(downloadLink);
+                            
+                            
+                            
+                            // 处理流式返回的base64音频数据
+                            // 替换原来的 processAudioChunk 函数
+                            const processAudioChunk = async (base64Data) => {
+                                try {
+                                    // 1. 移除可能的数据前缀
+                                    const cleanBase64 = base64Data.replace(/^data:audio\/\w+;base64,/, '');
 
-                            // 显示生成的音频
-                            if (data && data.audioUrl) {
-                                const audioContainer = document.createElement('div');
+                                    // 2. 解码 base64
+                                    const binaryString = atob(cleanBase64);
+                                    const pcmBytes = new Uint8Array(binaryString.length);
+                                    for (let i = 0; i < binaryString.length; i++) {
+                                        pcmBytes[i] = binaryString.charCodeAt(i);
+                                    }
 
-                                const audio = document.createElement('audio');
-                                audio.src = data.audioUrl;
-                                audio.controls = true;
-                                audioContainer.appendChild(audio);
+                                    // 3. 将 PCM 转换为 WAV
+                                    const wavBytes = pcmToWav(pcmBytes, {
+                                        sampleRate: 16000,
+                                        numChannels: 1,
+                                        bitDepth: 16,  // 16-bit, 8-bit, 24-bit
+                                        signed: true,
+                                        byteOrder: 'little',  // 'little' 或 'big'
+                                        encoding: 'PCM_SIGNED'
+                                    });
 
-                                const downloadLink = document.createElement('a');
-                                downloadLink.href = data.audioUrl;
-                                downloadLink.download = 'tts-audio.wav';
-                                downloadLink.textContent = '下载音频';
-                                downloadLink.target = '_blank';
-                                audioContainer.appendChild(downloadLink);
+                                    // 4. 创建 WAV Blob
+                                    const audioBlob = new Blob([wavBytes], { type: 'audio/wav' });
+                                    const audioUrl = URL.createObjectURL(audioBlob);
 
-                                botMessageElement.appendChild(audioContainer);
-                            } else {
-                                botMessageElement.textContent = '语音生成失败';
-                            }
+                                    // 将音频添加到播放队列
+                                    this.audioQueue.push({
+                                        url: audioUrl,
+                                        blob: audioBlob
+                                    });
 
-                            this.scrollToBottom();
-                        });
+                                    // 如果当前没有正在播放的音频，则开始播放队列
+                                    if (!this.isPlaying) {
+                                        processNextAudio();
+                                    }
+                                } catch (error) {
+                                    console.error('处理音频数据异常', error);
+                                }
+                            };
+
+// 添加新的音频播放处理函数
+                            const processNextAudio = async () => {
+                                if (this.audioQueue.length === 0) {
+                                    this.isPlaying = false;
+                                    return;
+                                }
+
+                                this.isPlaying = true;
+                                const audioItem = this.audioQueue.shift(); // 取出队列中的第一个音频
+
+                                try {
+                                    // 创建音频元素并播放
+                                    this.audio = new Audio();
+                                    this.audio.src = audioItem.url;
+
+                                    this.audio.oncanplay = () => {
+                                        console.log('音频已准备好播放');
+                                    };
+
+                                    await this.audio.play();
+
+                                    // 等待当前音频播放完成后再处理下一个
+                                    await new Promise((resolve) => {
+                                        this.audio.onended = () => {
+                                            // 播放完成后释放资源
+                                            URL.revokeObjectURL(audioItem.url);
+                                            console.log('音频播放完成');
+                                            resolve();
+                                        };
+
+                                        // 如果播放出错也继续下一个
+                                        this.audio.onerror = () => {
+                                            URL.revokeObjectURL(audioItem.url);
+                                            console.log('音频播放出错，跳转到下一个');
+                                            resolve();
+                                        };
+                                    });
+                                } catch (error) {
+                                    console.error('播放音频异常', error);
+                                }
+
+                                // 处理下一个音频
+                                processNextAudio();
+                            };
+
+// PCM 转 WAV 的核心函数
+                            const pcmToWav = (pcmData, options = {}) => {
+                                /**
+                                 * sampleRate: 16000,
+                                 *             numChannels: 1,
+                                 *             bitDepth: 16,  // 16-bit, 8-bit, 24-bit
+                                 *             signed: true,
+                                 *             byteOrder: 'little',  // 'little' 或 'big'
+                                 *             encoding: 'PCM_SIGNED'
+                                 * @type {number}
+                                 */
+                                const {
+                                    sampleRate = 16000,
+                                    numChannels = 1,
+                                    bytesPerSample = 2,
+                                    byteOrder = 'little'  // 'little' 或 'big'
+                                } = options;
+
+                                const dataSize = pcmData.length;
+                                const headerSize = 44;
+                                const wavData = new DataView(new ArrayBuffer(headerSize + dataSize));
+
+                                // 设置 WAV 文件头
+                                // RIFF 头
+                                writeString(wavData, 0, 'RIFF');
+                                wavData.setUint32(4, 36 + dataSize, true); // 文件大小
+                                writeString(wavData, 8, 'WAVE');
+
+                                // fmt 子块
+                                writeString(wavData, 12, 'fmt ');
+                                wavData.setUint32(16, 16, true); // fmt 块大小
+                                wavData.setUint16(20, 1, true);  // 音频格式: 1 = PCM
+                                wavData.setUint16(22, numChannels, true);
+                                wavData.setUint32(24, sampleRate, true);
+                                wavData.setUint32(28, sampleRate * numChannels * bytesPerSample, true); // 字节率
+                                wavData.setUint16(32, numChannels * bytesPerSample, true); // 块对齐
+                                wavData.setUint16(34, bytesPerSample * 8, true); // 位深度
+
+                                // data 子块
+                                writeString(wavData, 36, 'data');
+                                wavData.setUint32(40, dataSize, true);
+
+                                // 复制 PCM 数据
+                                for (let i = 0; i < dataSize; i++) {
+                                    wavData.setUint8(44 + i, pcmData[i]);
+                                }
+
+                                return wavData;
+                            };
+
+// 辅助函数：写入字符串到 DataView
+                            const writeString = (view, offset, string) => {
+                                for (let i = 0; i < string.length; i++) {
+                                    view.setUint8(offset + i, string.charCodeAt(i));
+                                }
+                            };
+                            
+                            
+                            // 修改readStream函数，处理TTS流式数据
+                            // const originalReadStream = readStream;
+                            const newReadStream = () => {
+                                reader.read().then(({ done, value }) => {
+                                    if (done) {
+                                        // 处理剩余数据
+                                        if (lineBuffer.trim()) {
+                                            try {
+                                                const jsonData = JSON.parse(lineBuffer.trim());
+                                                for (let i = 0; i < jsonData.length; i++) {
+                                                    const line = jsonData[i];
+                                                    if(line.first && line.extendDatas){
+                                                        let title = line.extendDatas["title"];
+                                                        let url = line.extendDatas["url"];
+                                                        accumulatedContent += `<a href="${url}" target="_blank">${title}</a><br><br>`;
+                                                        //将链接作为一个超链接追加到答案的末尾
+                                                        this.updateBotMessage(botMessageElement, accumulatedContent);
+                                                    }
+                                                    if (line.data) {
+                                                        // 假设line.data是base64编码的音频片段
+                                                        processAudioChunk(line.data);
+                                                    }
+                                                    if(line.done && line.extendDatas){
+                                                        let title = line.extendDatas["title"];
+                                                        let url = line.extendDatas["url"];
+                                                        //将链接作为一个超链接追加到答案的末尾
+                                                        this.updateBotMessage(botMessageElement, accumulatedContent +`<br><br><a href="${url}" target="_blank">${title}</a>`);
+                                                    }
+                                                    if(line.done){
+                                                        botMessageElement.appendChild(audioContainer);
+                                                    }
+                                                }
+                                            } catch (e) {
+                                                console.error('解析最终音频数据时出错:', e);
+                                            }
+                                        }
+                                        this.isStreaming = false;
+                                        if (reset) {
+                                            this.resetCheckbox.checked = false;
+                                        }
+                                        return;
+                                    }
+                        
+                                    // 解码当前chunk
+                                    const chunk = decoder.decode(value, { stream: true });
+                        
+                                    // 将新数据添加到行缓冲区
+                                    if (lineBuffer) {
+                                        lineBuffer += chunk;
+                                    } else {
+                                        lineBuffer = chunk;
+                                    }
+                        
+                                    // 按行分割数据
+                                    const lines = lineBuffer.split('\n');
+                                    lineBuffer = lines.pop() || '';
+                        
+                                    // 处理完整的行
+                                    lines.forEach(line => {
+                                        if (line.trim()) {
+                                            try {
+                                                const jsonData = JSON.parse(line.trim());
+                                                for (let i = 0; i < jsonData.length; i++) {
+                                                    const lineData = jsonData[i];
+                                                    if(lineData.first && lineData.extendDatas){
+                                                        let title = lineData.extendDatas["title"];
+                                                        let url = lineData.extendDatas["url"];
+                                                        accumulatedContent += `<a href="${url}" target="_blank">${title}</a><br><br>`;
+                                                        //将链接作为一个超链接追加到答案的末尾
+                                                        this.updateBotMessage(botMessageElement, accumulatedContent);
+                                                    }
+                                                    if (lineData.data) {
+                                                        // 假设lineData.data是base64编码的音频片段
+                                                        processAudioChunk(lineData.data);
+                                                    }
+                                                    
+                                                    if (!finishReason && lineData.finishReason) {
+                                                        finishReason = lineData.finishReason;
+                                                    }
+                                                    if (this.terminalIntercept(finishReason)) {
+                                                        accumulatedContent = accumulatedContent + `....对话异常终止,终止原因：` + finishReason;
+                                                        this.updateBotMessage(botMessageElement, accumulatedContent);
+                                                        finishReason = null;
+                                                    }
+                                                    if(lineData.done && lineData.extendDatas){
+                                                        let title = lineData.extendDatas["title"];
+                                                        let url = lineData.extendDatas["url"];
+                                                        //将链接作为一个超链接追加到答案的末尾
+                                                        this.updateBotMessage(botMessageElement, accumulatedContent +`<br><br><a href="${url}" target="_blank">${title}</a>`);
+                                                    }
+                                                    if(lineData.done){
+                                                        botMessageElement.appendChild(audioContainer);
+                                                    }
+                                                }
+                                            } catch (e) {
+                                                console.error('解析音频数据时出错:', e);
+                                            }
+                                        }
+                                    });
+                        
+                                    // 继续读取
+                                    newReadStream();
+                                }).catch(error => {
+                                    if (error.name !== 'AbortError') {
+                                        console.error('Stream reading error:', error);
+                                        this.displayErrorMessage('接收音频数据时出错');
+                                    }
+                                    this.isStreaming = false;
+                                });
+                            };
+                        
+                            newReadStream();
+                            return ;
+                        }
+
                     }
                     else if (this.modelType === 'VIDEO') {
                         return response.json().then(data => {
