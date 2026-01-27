@@ -151,7 +151,7 @@ public class ReactorController implements InitializingBean {
         //设置模型
         chatAgentMessage.setModel( model);
         //设置历史消息
-        chatAgentMessage.setSessionMemory(sessionMemory)
+        chatAgentMessage.setSessionMemory(sessionMemory).setSessionSize(50)
         //不配置以下参数时，默认值设置如下
                 .setStream( enableStream)
                 .addParameter("max_tokens", 8192)
@@ -196,13 +196,9 @@ public class ReactorController implements InitializingBean {
                     
                     if( completeAnswer.length() > 0) {
                         // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                        Map<String, Object> assistantMessage = MessageBuilder.buildAssistantMessage(completeAnswer.toString());                        
-                        sessionMemory.add(assistantMessage);
-
-                        // 维护记忆窗口大小为20
-                        if (sessionMemory.size() > 20) {
-                            sessionMemory.remove(0);
-                        }
+                        chatAgentMessage.addSessionMessage(completeAnswer.toString());
+                        
+                       
                     }
                     
                     
@@ -296,6 +292,7 @@ public class ReactorController implements InitializingBean {
         imageVLAgentMessage.setModel( model);
         // 构建消息历史列表，包含之前的会话记忆
         imageVLAgentMessage.setSessionMemory(sessionMemory);
+        imageVLAgentMessage.setSessionSize(50);
 
         List<String> imagesBase64  = (List)questions.get("imagesBase64");
         String imageUrl = (String)questions.get("imageUrl");
@@ -369,13 +366,8 @@ public class ReactorController implements InitializingBean {
                             
                             if( completeAnswer.length() > 0) {
                                 // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                                Map<String, Object> assistantMessage = MessageBuilder.buildAssistantMessage(completeAnswer.toString());
-                                sessionMemory.add(assistantMessage);
-
-                                // 维护记忆窗口大小为20
-                                if (sessionMemory.size() > 20) {
-                                    sessionMemory.remove(0);
-                                }
+                                imageVLAgentMessage.addSessionMessage(completeAnswer.toString());
+                               
                             }
 
 
@@ -573,73 +565,65 @@ public class ReactorController implements InitializingBean {
      * @param request HTTP请求
      * @return
      */
-    public Flux<List<ServerEvent>> audioFileRecognition(MultipartFile audio, HttpServletRequest request) {
+    public Flux<List<ServerEvent>> audioFileRecognition(MultipartFile audio, HttpServletRequest request) throws IOException {
         String selectedModel = request.getParameter("selectedModel");
         String reset = request.getParameter("reset");
+        Boolean enableStream = false;
+        String t = request.getParameter("enableStream");
+        if(t != null && t.equals("true")){
+            enableStream = true;
+        }
         if (reset != null && reset.equals("true")) {
             sessionMemory.clear();
         }
-        String deepThink_ = request.getParameter("deepThink");
         String message = null;
         message = request.getParameter("message");
         if (SimpleStringUtil.isEmpty(message)) {
             message = "介绍音频内容";
         }
     
-        Map<String, Object> requestMap = new HashMap<>();
-        requestMap.put("model", "qwen3-asr-flash");
-    
-        // 构建消息历史列表，包含之前的会话记忆
-        List<Map<String, Object>> messages = new ArrayList<>(sessionMemory);
-    
-        // 添加当前用户消息
-        Map<String, Object> userMessage = MessageBuilder.buildAudioSystemMessage( message);
-        messages.add(userMessage);
-    
-        //直接设置音频url地址
-//        MessageBuilder.buildAudioMessage("https://dashscope.oss-cn-beijing.aliyuncs.com/audios/welcome.mp3");
-        //将音频文件转换为base64编码
-        userMessage = MessageBuilder.buildAudioMessage(new AudioDataBuilder() {
-            @Override
-            public String buildAudioBase64Data() {
-                String base64Audio = null;
-                if (audio != null && !audio.isEmpty()) {
-                    try {
-                        byte[] audioBytes = audio.getBytes();
-                        base64Audio = "data:" + audio.getContentType() + ";base64," +
-                                java.util.Base64.getEncoder().encodeToString(audioBytes);
-                    } catch (Exception e) {
-                        logger.error("音频文件转换base64失败", e);
-                    }
-                }
-                return base64Audio;
-            }
-        });
+        AudioSTTAgentMessage audioSTTAgentMessage = new AudioSTTAgentMessage();
+        audioSTTAgentMessage.setStream(enableStream);
+        String model = null;
+        String completionUrl = null;
+        audioSTTAgentMessage.setAudio(audio.getBytes());
+        audioSTTAgentMessage.setContentType(audio.getContentType());
+        if(selectedModel.equals("qwenvlplus")){
+            model = "qwen3-asr-flash";
+            completionUrl = "/api/v1/services/aigc/multimodal-generation/generation";
+                //设置音频文件内容
+                
+                //直接设置音频url地址
+//       audioSTTAgentMessage.setAudio("https://dashscope.oss-cn-beijing.aliyuncs.com/audios/welcome.mp3");
 
-//        sessionMemory.add(userMessage);
-        messages.add(userMessage);
-        
-        Map<String, Object> input = new LinkedHashMap<>();
-        input.put("messages", messages);
-        requestMap.put("input", input);
-    
-        Map asr_options = new LinkedHashMap();
-        asr_options.put("enable_itn", true);
-        Map parameters = new LinkedHashMap();
-        parameters.put("asr_options", asr_options);
-        parameters.put("incremental_output", true);
-        requestMap.put("parameters", parameters);
-        requestMap.put("result_format", "message");
+            
+            audioSTTAgentMessage.addMapParameter("asr_options","enable_itn",true);
+            audioSTTAgentMessage.addParameter("incremental_output", true);
+            audioSTTAgentMessage.setResultFormat( "message");
+            
+        }
+        else if(selectedModel.equals("zhipu")){
+            model = "glm-asr-2512";
+            completionUrl = "/api/paas/v4/audio/transcriptions";
+        }
+        audioSTTAgentMessage.setModel(model);
+        // 构建消息历史列表，包含之前的会话记忆,语音识别模型本身无法实现多轮会话，如果要多轮会话，需切换支持多轮会话的模型，例如LLM和千问图片识别模型
+        audioSTTAgentMessage.setSessionMemory(sessionMemory);
+        audioSTTAgentMessage.setSessionSize(50);
+        // 添加当前用户消息
+        audioSTTAgentMessage.setMessage( message);
         
         // 用于累积完整的回答
         StringBuilder completeAnswer = new StringBuilder();
-        Flux<List<ServerEvent>> flux = AIAgentUtil.streamChatCompletionEvent("qwenvlplus", 
-                "/api/v1/services/aigc/multimodal-generation/generation", requestMap)
-                .doOnNext(chunk -> {
-                    if (!chunk.isDone()) {
-                        logger.info(chunk.getData());
-                    }
-                }).limitRate(5) // 限制请求速率
+        AIAgent aiAgent = new AIAgent();
+        Flux<List<ServerEvent>> flux = aiAgent.streamAudioParser(selectedModel,
+                        completionUrl, audioSTTAgentMessage)
+//                .doOnNext(chunk -> {
+//                    if (!chunk.isDone()) {
+//                        logger.info(chunk.getData());
+//                    }
+//                })
+                .limitRate(5) // 限制请求速率
                 .buffer(3);
     
         flux = flux.doOnNext(bufferedEvents -> {
@@ -659,13 +643,8 @@ public class ReactorController implements InitializingBean {
                 } else {
                     if (completeAnswer.length() > 0) {
                         // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                        Map<String, Object> assistantMessage = MessageBuilder.buildAssistantMessage(completeAnswer.toString());
-                        sessionMemory.add(assistantMessage);
-    
-                        // 维护记忆窗口大小为20
-                        if (sessionMemory.size() > 20) {
-                            sessionMemory.remove(0);
-                        }
+                        audioSTTAgentMessage.addSessionMessage(completeAnswer.toString());
+
                     }
                 }
             }

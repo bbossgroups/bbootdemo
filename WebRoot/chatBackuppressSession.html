@@ -72,11 +72,12 @@
             <option type="IMAGE2IMG" value="jiutian">cntxt2image（九天文图生图）</option>
             <option type="IMAGE2IMG" value="qwenvlplus">qwen-image-plus（百炼文图生图）</option>
             <option type="IMAGE2IMG" value="volcengine">doubao-seedream-4.5（豆包火山引擎文图生图）</option>
-            <option type="AUDIO" value="qwenvlplus">qwen3-asr-flash（百炼语音识别）</option>
             <option type="TTS" value="qwenvlplus">qwen3-tts-flash（百炼语音生成）</option>
             <option type="TTS" stream="true" value="qwenvlplus">qwen3-tts-flash（百炼语音生成-流式模式）</option>
             <option type="TTS" value="zhipu">智谱（智谱语音生成）</option>
             <option type="TTS" stream="true"  value="zhipu">智谱（智谱语音生成-流式模式）</option>
+            <option type="AUDIO" value="qwenvlplus">qwen3-asr-flash（百炼语音识别）</option>
+            <option type="AUDIO" value="zhipu">glm-asr（智谱语音识别）</option>
             <option type="VIDEO" value="qwenvlplus">wan2.5-t2v-preview（百炼视频生成）</option>
 
         </select>
@@ -546,10 +547,10 @@
             else if (this.modelType === 'VL') {
                 const hasImageUrl = this.imageUrlInput.value.trim();
                 const hasImageUpload = this.imagesBase64Data.length > 0;
-                if (!hasImageUrl && !hasImageUpload) {
-                    this.displayErrorMessage('请选择图片或输入图片链接');
-                    return;
-                }
+                // if (!hasImageUrl && !hasImageUpload) {
+                //     this.displayErrorMessage('请选择图片或输入图片链接');
+                //     return;
+                // }
             }
                 // 在 sendMessage 方法的验证部分更新
 // 添加IMAGE2IMG模型的特殊验证
@@ -575,7 +576,7 @@
             // this.displayUserMessage(message);
             // 显示用户消息
             if (this.modelType === 'AUDIO') {
-                this.displayUserAudioMessage();
+                this.displayUserAudioMessage(message);
             } else {
                 this.displayUserMessage(message);
             }
@@ -676,6 +677,7 @@
                 formData.append('reset', reset);
                 formData.append('message', message);
                 formData.append('selectedModel', selectedModel);
+                formData.append('enableStream', enableStream);
                 fetchParams = {
                     method: 'POST',
                     body: formData,
@@ -1288,12 +1290,12 @@
             }
         }
 
-        displayUserAudioMessage() {
+        displayUserAudioMessage(message) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message user-message';
 
             const textDiv = document.createElement('div');
-            textDiv.textContent = "[音频消息]";
+            textDiv.textContent = message; 
             messageDiv.appendChild(textDiv);
 
             // 添加音频预览
