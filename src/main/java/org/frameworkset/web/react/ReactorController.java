@@ -100,7 +100,7 @@ public class ReactorController implements InitializingBean {
         }
         String message = (String)questions.get("message");
         ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
-        chatAgentMessage.setMessage( message);//当前消息
+        chatAgentMessage.setPrompt( message);//当前消息
         
         //设置模型服务地址
         String completionsUrl =  null;
@@ -230,7 +230,7 @@ public class ReactorController implements InitializingBean {
             message = "介绍图片内容并计算结果";
         }
         ImageVLAgentMessage imageVLAgentMessage = new ImageVLAgentMessage();
-        imageVLAgentMessage.setMessage(message);
+        imageVLAgentMessage.setPrompt(message);
         String model= null;
         String completionsUrl = null;
 
@@ -396,7 +396,7 @@ public class ReactorController implements InitializingBean {
                 return "image/"+SimpleStringUtil.getUUID32() +".jpg";
             }
         });
-        request.setMessage( message);
+        request.setPrompt( message);
         ImageEvent data = null;
         AIAgent aiAgent = new AIAgent();
         String completionsUrl = null;
@@ -504,7 +504,7 @@ public class ReactorController implements InitializingBean {
 
 
         }
-        request.setMessage( message);
+        request.setPrompt( message);
         ImageEvent data = null;
         AIAgent aiAgent = new AIAgent();
         String completionsUrl = null;
@@ -611,7 +611,7 @@ public class ReactorController implements InitializingBean {
         audioSTTAgentMessage.setSessionMemory(sessionMemory);
         audioSTTAgentMessage.setSessionSize(50);
         // 添加当前用户消息
-        audioSTTAgentMessage.setMessage( message);
+        audioSTTAgentMessage.setPrompt( message);
         
         // 用于累积完整的回答
         StringBuilder completeAnswer = new StringBuilder();
@@ -670,7 +670,7 @@ public class ReactorController implements InitializingBean {
             message = "诗歌朗诵：床前明月光；疑似地上霜；举头望明月；低头思故乡。";
         }
         AudioAgentMessage audioAgentMessage = new AudioAgentMessage();
-        audioAgentMessage.setMessage(message);
+        audioAgentMessage.setPrompt(message);
         String completionsUrl = null;
         String model = null;
         if(selectedModel.equals("qwenvlplus")) {
@@ -727,7 +727,7 @@ public class ReactorController implements InitializingBean {
         String completionsUrl = null;
         String model = null;
         AudioAgentMessage audioAgentMessage = new AudioAgentMessage();
-        audioAgentMessage.setMessage(message);
+        audioAgentMessage.setPrompt(message);
         if(selectedModel.equals("qwenvlplus")) {
            
             model = "qwen3-tts-flash";
@@ -840,9 +840,15 @@ public class ReactorController implements InitializingBean {
         if(SimpleStringUtil.isEmpty( message)){
             message = "一幅史诗级可爱的场景。一只小巧可爱的卡通小猫将军，身穿细节精致的金色盔甲，头戴一个稍大的头盔，勇敢地站在悬崖上。他骑着一匹虽小但英勇的战马，说：”青海长云暗雪山，孤城遥望玉门关。黄沙百战穿金甲，不破楼兰终不还。“。悬崖下方，一支由老鼠组成的、数量庞大、无穷无尽的军队正带着临时制作的武器向前冲锋。这是一个戏剧性的、大规模的战斗场景，灵感来自中国古代的战争史诗。远处的雪山上空，天空乌云密布。整体氛围是“可爱”与“霸气”的搞笑和史诗般的融合。";
         }
-
-
-
+        VideoAgentMessage videoAgentMessage = new VideoAgentMessage();
+        videoAgentMessage.setModel("wan2.5-t2v-preview")
+                .setPrompt( message)
+                .setLanguageType("Chinese")
+                .addParameter("size","832*480")
+                .addParameter("prompt_extend",true)
+                .addParameter("duration",10)
+                .addParameter("audio",true)
+                .addHeader("X-DashScope-Async","enable");
         Map<String, Object> requestMap = new HashMap<>();
         requestMap.put("model", "wan2.5-t2v-preview");
 

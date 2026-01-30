@@ -17,10 +17,10 @@ package org.frameworkset.web.react;
 
 import com.frameworkset.util.SimpleStringUtil;
 import org.frameworkset.spi.InitializingBean;
-import org.frameworkset.spi.ai.model.AudioEvent;
-import org.frameworkset.spi.ai.model.ImageAgentMessage;
-import org.frameworkset.spi.ai.model.ImageEvent;
-import org.frameworkset.spi.ai.model.ServerEvent;
+import org.frameworkset.spi.ai.AIAgent;
+import org.frameworkset.spi.ai.material.ReponseStoreFilePathFunction;
+import org.frameworkset.spi.ai.material.StoreFilePathFunction;
+import org.frameworkset.spi.ai.model.*;
 import org.frameworkset.spi.ai.util.AIAgentUtil;
 import org.frameworkset.spi.ai.util.AudioDataBuilder;
 import org.frameworkset.spi.ai.util.MessageBuilder;
@@ -473,7 +473,7 @@ public class OldReactorController implements InitializingBean {
             message = "生成一颗桂花树";
         }
         ImageAgentMessage request = new ImageAgentMessage();
-        request.setMessage( message);
+        request.setPrompt( message);
         ImageEvent data = null;
         if(selectedModel.equals("volcengine")){
             request.setModel( "doubao-seedream-4-5-251128");
@@ -671,25 +671,25 @@ public class OldReactorController implements InitializingBean {
             message = "诗歌朗诵：床前明月光；疑似地上霜；举头望明月；低头思故乡。";
         }
 
-
-
-        Map<String, Object> requestMap = new HashMap<>();
-        requestMap.put("model", "qwen3-tts-flash");
-
-
-
-
-        Map<String,Object> inputVoice = new LinkedHashMap();
-        inputVoice.put("text",message);
-        inputVoice.put("voice","Cherry");
-        inputVoice.put("language_type","Chinese");
-
-        requestMap.put("input",inputVoice);
-        AudioEvent audioEvent = AIAgentUtil.multimodalAudioGeneration("qwenvlplus","/api/v1/services/aigc/multimodal-generation/generation",requestMap);
-
-
-
-//
+        AudioAgentMessage audioAgentMessage = new AudioAgentMessage();
+        audioAgentMessage.setPrompt(message);
+        String completionsUrl = null;
+        String model = null;
+            completionsUrl = "/api/v1/services/aigc/multimodal-generation/generation";
+            model = "qwen3-tts-flash";
+            audioAgentMessage.addParameter("voice", "Cherry")
+                    .addParameter("language_type", "Chinese")
+                    //设置音频下载相对路径，将和endpoint组合形成音频文件播放地址
+                    .setStoreFilePathFunction(new StoreFilePathFunction() {
+                        @Override
+                        public String getStoreFilePath(String imageUrl) {
+                            return "audio/"+SimpleStringUtil.getUUID32() +".wav";
+                        }
+                    });
+         
+        audioAgentMessage.setModel(model);
+        AIAgent aiAgent = new AIAgent();
+        AudioEvent audioEvent = aiAgent.genAudio("qwenvlplus",completionsUrl,audioAgentMessage);
         return audioEvent;
     }
 
