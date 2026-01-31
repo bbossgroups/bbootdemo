@@ -355,8 +355,14 @@
 
             let content = `<div><strong>任务ID:</strong> ${data.taskId || 'N/A'}</div>`;
             content += `<div><strong>任务状态:</strong> ${status}</div>`;
+            content += `<div><strong>任务提交时间:</strong> ${data.submitTime}</div>`;
+            content += `<div><strong>任务执行时间:</strong> ${data.scheduledTime}</div>`;
+            content += `<div><strong>任务结束时间:</strong> ${data.endTime}</div>`;
+            content += `<div><strong>origPrompt:</strong> ${data.origPrompt}</div>`;
+            
 
             if (data.videoUrl ) {
+                content += `<div><strong>视频地址:</strong> ${data.videoUrl}</div>`;
                 content += `            <div style="margin-top: 10px;">
                 <strong>生成的视频:</strong><br/>
                 <video controls style="max-width: 100%; height: auto; margin-top: 5px;">
@@ -713,6 +719,12 @@
                     if (this.modelType === 'IMAGE') {
                         return response.json().then(data => {
                             this.isStreaming = false;
+                            if(data && data.code != "200"){
+                                // 处理错误
+                                const errorMessage = data.message;
+                                this.displayErrorMessage(errorMessage);
+                                return;
+                            }
                             let botMessageElement = this.createBotMessageElement();
 
                             // 显示生成的图片
@@ -744,7 +756,14 @@
 // 在响应处理部分添加 IMAGE2IMG 处理
                     else if (this.modelType === 'IMAGE2IMG') {
                         return response.json().then(data => {
+                            
                             this.isStreaming = false;
+                            if(data && data.code != "200"){
+                                // 处理错误
+                                const errorMessage = data.message;
+                                this.displayErrorMessage(errorMessage);
+                                return;
+                            }
                             let botMessageElement = this.createBotMessageElement();
 
                             // 显示生成的图片
@@ -776,9 +795,9 @@
                     else if (this.modelType === 'TTS') {
                         if(!this.modelTypeStream) {
                             return response.json().then(data => {
-                                if(data && data.code != 200){
+                                if(data && data.code != "200"){
                                     // 处理错误
-                                    const errorMessage = data.errorMessage;
+                                    const errorMessage = data.message;
                                     this.displayErrorMessage(errorMessage);
                                     return;
                                 }
@@ -1090,18 +1109,20 @@
                         return response.json().then(data => {
                             this.isStreaming = false;
                             let botMessageElement = this.createBotMessageElement();
-
+                            if(data.message != null){
+                                this.displayErrorMessage("code:"+data.code +",errormessage:"+ data.message);
+                                return
+                            }
                             // 显示任务信息
                             if (data && data.taskId) {
                                 const taskInfo = document.createElement('div');
                                 taskInfo.innerHTML = `                <div><strong>视频生成任务已提交</strong></div>
                 <div><strong>任务ID:</strong> ${data.taskId}</div>
                 <div><strong>状态:</strong> ${data.taskStatus ? data.taskStatus: '提交中'}</div>
-                ${data && data.message ? `<div><strong>信息:</strong> ${data.message}</div>` : ''}                <div style="margin-top: 10px;">
-                    <button onclick="document.getElementById('task-id-input').value='${data.taskId}';document.getElementById('query-task-btn').click()">查询任务状态</button>
-                </div>
+                ${data && data.message ? `<div><strong>信息:</strong> ${data.message}</div>` : ''}               
             `;
                                 botMessageElement.appendChild(taskInfo);
+                                this.taskIdInput.value = data.taskId;
                             } else {
                                 botMessageElement.textContent = '视频生成任务提交失败';
                             }

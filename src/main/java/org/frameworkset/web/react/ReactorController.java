@@ -381,7 +381,7 @@ public class ReactorController implements InitializingBean {
 
     
 
-    public @ResponseBody Map genImage(@RequestBody Map<String,Object> questions) throws InterruptedException {
+    public @ResponseBody ImageEvent genImage(@RequestBody Map<String,Object> questions) throws InterruptedException {
         String selectedModel = (String)questions.get("selectedModel");
         boolean generateMultipleImages  = questions != null?(boolean)questions.get("generateMultipleImages"):false;
         String message  = null;
@@ -446,11 +446,7 @@ public class ReactorController implements InitializingBean {
            
         }
         data = aiAgent.genImage(selectedModel,completionsUrl,request);
-        String imageUrl = data.getImageUrl();
-
-        Map ret = new HashMap();
-        ret.put("imageUrl",imageUrl);
-        return ret;
+        return data;
         
     }
 
@@ -462,7 +458,7 @@ public class ReactorController implements InitializingBean {
      * @throws InterruptedException
      */
 
-    public @ResponseBody Map genImageFromImage(@RequestBody Map<String,Object> questions) throws InterruptedException {
+    public @ResponseBody ImageEvent genImageFromImage(@RequestBody Map<String,Object> questions) throws InterruptedException {
         String selectedModel = (String)questions.get("selectedModel");
         boolean generateMultipleImages  = questions != null?(boolean)questions.get("generateMultipleImages"):false;
         String message  = null;
@@ -512,12 +508,12 @@ public class ReactorController implements InitializingBean {
             //字节火山引擎
             request.setModelType(AIConstants.AI_MODEL_TYPE_DOUBAO);
             request.setModel( "doubao-seedream-4-5-251128");
-            if(generateMultipleImages) {
+            if(!generateMultipleImages) {
                 request.addParameter("sequential_image_generation", "disabled");//生成单图
             }
             else {
                 request.addParameter("sequential_image_generation", "auto");//生成多图
-                request.addMapParameter("sequential_image_generation_options","max_images",3);
+                request.addMapParameter("sequential_image_generation_options","max_images",5);
             }
             request.addParameter("response_format", "url");
             request.addParameter("size", "2k");
@@ -536,7 +532,7 @@ public class ReactorController implements InitializingBean {
             //通过在http.modelType指定全局模型适配器类型，亦可以在ImageAgentMessage对象设置请求级别modelType模型适配器类型（优先级高于全局模型适配器类型）
             request.setModelType(AIConstants.AI_MODEL_TYPE_QWEN);
             request.setModel( "qwen-image-edit-max-2026-01-16");
-            request.addParameter("n",2);
+            request.addParameter("n",5);
             request.addParameter("prompt_extend",true);
             request.addParameter("watermark",false);
             request.addParameter("size","1536*1024");
@@ -545,14 +541,7 @@ public class ReactorController implements InitializingBean {
 
         }
         data = aiAgent.genImage(selectedModel,completionsUrl,request);
-        String newimageUrl = data.getImageUrl();
-
-        Map ret = new HashMap();
-        ret.put("imageUrl",newimageUrl);
-        ret.put("imageUrls",data.getImageUrls());
-        ret.put("response",data.getResponse());
-        ret.put("contentEvent",data.getContentEvent());
-        return ret;
+        return data;
 
     }
 
@@ -832,7 +821,7 @@ public class ReactorController implements InitializingBean {
      * @return
      * @throws InterruptedException
      */
-    public @ResponseBody Map submitVideoByqwenwan(@RequestBody Map<String,Object> questions) throws InterruptedException {
+    public @ResponseBody VideoTask submitVideoByqwenwan(@RequestBody Map<String,Object> questions) throws InterruptedException {
 //        String selectedModel = (String)questions.get("selectedModel");
 
         String message  = null;
@@ -841,53 +830,18 @@ public class ReactorController implements InitializingBean {
             message = "一幅史诗级可爱的场景。一只小巧可爱的卡通小猫将军，身穿细节精致的金色盔甲，头戴一个稍大的头盔，勇敢地站在悬崖上。他骑着一匹虽小但英勇的战马，说：”青海长云暗雪山，孤城遥望玉门关。黄沙百战穿金甲，不破楼兰终不还。“。悬崖下方，一支由老鼠组成的、数量庞大、无穷无尽的军队正带着临时制作的武器向前冲锋。这是一个戏剧性的、大规模的战斗场景，灵感来自中国古代的战争史诗。远处的雪山上空，天空乌云密布。整体氛围是“可爱”与“霸气”的搞笑和史诗般的融合。";
         }
         VideoAgentMessage videoAgentMessage = new VideoAgentMessage();
-        videoAgentMessage.setModel("wan2.5-t2v-preview")
+        videoAgentMessage.setModel("wan2.6-t2v")
                 .setPrompt( message)
-                .setLanguageType("Chinese")
-                .addParameter("size","832*480")
+                .setAudioUrl("https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250923/hbiayh/%E4%BB%8E%E5%86%9B%E8%A1%8C.mp3")
+//                .setLanguageType("Chinese")
+                .addParameter("size","1280*720")
                 .addParameter("prompt_extend",true)
                 .addParameter("duration",10)
-                .addParameter("audio",true)
-                .addHeader("X-DashScope-Async","enable");
-        Map<String, Object> requestMap = new HashMap<>();
-        requestMap.put("model", "wan2.5-t2v-preview");
-
-
-
-
-        Map<String,Object> inputVoice = new LinkedHashMap();
-        inputVoice.put("prompt",message);
-//        inputVoice.put("audio_url","https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250923/hbiayh/%E4%BB%8E%E5%86%9B%E8%A1%8C.mp3");
-        inputVoice.put("language_type","Chinese");
-
-        requestMap.put("input",inputVoice);
-
-        /**
-         * "parameters": {
-         *         "size": "832*480",
-         *         "prompt_extend": true,
-         *         "duration": 10,
-         *         "audio": true
-         *     }
-         */
-        Map<String,Object> parameters = new LinkedHashMap();
-        parameters.put("size","832*480");
-        parameters.put("prompt_extend",true);
-        parameters.put("duration",10);
-        parameters.put("audio",true);
-
-        requestMap.put("parameters",parameters);
-        Map header = new LinkedHashMap();
-        header.put("X-DashScope-Async","enable");
-        Map taskInfo = HttpRequestProxy.sendJsonBody("qwenvlplus",requestMap,"/api/v1/services/aigc/video-generation/video-synthesis",header,Map.class);
-
-
-        Map<String, Object> result = new HashMap<>();
-        Map output = (Map)taskInfo.get("output");
-        result.put("taskId",output.get("task_id"));
-        result.put("taskStatus",output.get("task_status"));
-        result.put("requestId",taskInfo.get("request_id"));
-        return result;
+                .addParameter("shot_type","multi");
+       AIAgent aiAgent = new AIAgent();
+       VideoTask videoTask = aiAgent.submitVideoTask("qwenvlplus","/api/v1/services/aigc/video-generation/video-synthesis",videoAgentMessage);
+      
+        return videoTask;
     }
 
     /**
@@ -897,23 +851,29 @@ public class ReactorController implements InitializingBean {
      * @return
      * @throws InterruptedException
      */
-    public @ResponseBody Map getVideoTaskResult(@RequestBody Map<String,Object> questions) throws InterruptedException {
-        Map<String, Object> result = new HashMap<>();
+    public @ResponseBody VideoGenResult getVideoTaskResult(@RequestBody Map<String,Object> questions) throws InterruptedException {
         String taskId = questions != null?(String)questions.get("taskId"):null;
-        if(SimpleStringUtil.isEmpty( taskId)){
-            result.put("error","taskId为空");
-            return result;
-        }
- 
-        String requestUrl = "/api/v1/tasks/"+taskId;
-        Map taskInfo = HttpRequestProxy.httpGetforObject("qwenvlplus",requestUrl,Map.class);
-        Map output = (Map)taskInfo.get("output");
-        result.put("taskId",output.get("task_id"));
-        result.put("taskStatus",output.get("task_status"));
-        result.put("videoUrl",output.get("video_url"));
-        result.put("requestId",taskInfo.get("request_id"));
+         
+        AIAgent aiAgent = new AIAgent();
+        VideoStoreAgentMessage videoStoreAgentMessage = new VideoStoreAgentMessage();
+        videoStoreAgentMessage.setTaskId(taskId);
+        videoStoreAgentMessage.setStoreFilePathFunction(new StoreFilePathFunction() {
+            @Override
+            public String getStoreFilePath(String imageUrl) {
+                return "video/" + SimpleStringUtil.getUUID32() + ".mp4";
+            }
+        });
+        VideoGenResult videoTaskResult = aiAgent.getVideoTaskResult("qwenvlplus", videoStoreAgentMessage);
+         
+//        String requestUrl = "/api/v1/tasks/"+taskId;
+//        Map taskInfo = HttpRequestProxy.httpGetforObject("qwenvlplus",requestUrl,Map.class);
+//        Map output = (Map)taskInfo.get("output");
+//        result.put("taskId",output.get("task_id"));
+//        result.put("taskStatus",output.get("task_status"));
+//        result.put("videoUrl",output.get("video_url"));
+//        result.put("requestId",taskInfo.get("request_id"));
         
-        return result;
+        return videoTaskResult;
     }
 
     /**
