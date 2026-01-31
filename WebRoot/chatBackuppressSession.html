@@ -296,6 +296,7 @@
                 document.querySelector('label[for="multi-image-checkbox"]').style.display = 'none';
                 this.multiImageCheckbox.style.display = 'none';
             } else if (this.modelType === 'VIDEO') {
+                this.uploadContainer.style.display = 'block';
                 this.videoTaskContainer.style.display = 'block';
                 this.questionInput.style.flex = 'unset';
                 this.questionInput.style.width = '200px';
@@ -664,7 +665,7 @@
                 requestBody.generateMultipleImages = this.multiImageCheckbox.checked;
             }
             // 根据模型类型添加相应的图片参数
-            if (this.modelType === 'VL' || this.modelType === 'IMAGE2IMG') {
+            if (this.modelType === 'VL' || this.modelType === 'IMAGE2IMG' || this.modelType === 'VIDEO') {
                 // 如果是URL模式且有输入URL，则使用URL
                 if (this.imageUrlInput.value.trim()) {
                     requestBody.imageUrl = this.imageUrlInput.value.trim();
