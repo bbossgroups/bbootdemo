@@ -72,7 +72,12 @@ public class ReactorController implements InitializingBean {
 
         //将流数据转换成字符串流
         Flux<String> stringFlux = flux.map(serverEvent -> {
-            return serverEvent.getData();
+            if(serverEvent.getData() != null) {
+                return serverEvent.getData();
+            }
+            else{
+                return "";
+            }
         });
         return stringFlux;
 //                .doOnSubscribe(subscription -> logger.info("开始订阅流..."))
