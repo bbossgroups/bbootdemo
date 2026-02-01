@@ -79,6 +79,7 @@
             <option type="AUDIO" value="qwenvlplus">qwen3-asr-flash（百炼语音识别）</option>
             <option type="AUDIO" value="zhipu">glm-asr（智谱语音识别）</option>
             <option type="VIDEO" value="qwenvlplus">wan2.5-t2v-preview（百炼视频生成）</option>
+            <option type="VIDEO" value="volcengine">doubao-seedance-1-5-pro-251215（豆包视频生成）</option>
 
         </select>
     </div>
@@ -322,7 +323,7 @@
             }
 
             const url = 'reactor/getVideoTaskResult.api';
-            const requestBody = { taskId: taskId };
+            const requestBody = { taskId: taskId ,selectedModel: this.modelSelect.value};
 
             fetch(url, {
                 method: 'POST',

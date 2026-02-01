@@ -818,7 +818,7 @@ public class ReactorController implements InitializingBean {
      * @throws InterruptedException
      */
     public @ResponseBody VideoTask submitVideoByqwenwan(@RequestBody Map<String,Object> questions) throws InterruptedException {
-//        String selectedModel = (String)questions.get("selectedModel");
+        String selectedModel = (String)questions.get("selectedModel");
 
         String message  = null;
         message = questions != null?(String)questions.get("message"):null;
@@ -837,69 +837,110 @@ public class ReactorController implements InitializingBean {
         
         VideoAgentMessage videoAgentMessage = new VideoAgentMessage();
         String model = null;
-        if(SimpleStringUtil.isNotEmpty(imageUrl)) {
-            if(imageUrl.indexOf(",") > 0){
+        if(selectedModel.equals("volcengine")){
+            model = "doubao-seedance-1-5-pro-251215";
+        }
+        
+        if (SimpleStringUtil.isNotEmpty(imageUrl)) {
+            if (imageUrl.indexOf(",") > 0) {
                 String[] imageUrls = imageUrl.split(",");
                 videoAgentMessage.setFirstFrameUrl(imageUrls[0]);
                 videoAgentMessage.setLastFrameUrl(imageUrls[1]);
-                model = "wan2.2-kf2v-flash";
-            }
-            else {
+
+                if (selectedModel.equals("qwenvlplus")) {
+                    model = "wan2.2-kf2v-flash";
+                }
+            } else {
                 videoAgentMessage.setImgUrl(imageUrl);
-                videoAgentMessage.setAudioUrl("https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250923/hbiayh/%E4%BB%8E%E5%86%9B%E8%A1%8C.mp3");
-                model = "wan2.6-i2v-flash";
+
+                if (selectedModel.equals("qwenvlplus")) {
+                    model = "wan2.2-kf2v-flash";
+                    videoAgentMessage.setAudioUrl("https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250923/hbiayh/%E4%BB%8E%E5%86%9B%E8%A1%8C.mp3");
+                }
             }
-        }
-        else if(imagesBase64 != null && imagesBase64.size() > 0){
-            if(imagesBase64.size() > 1){
+        } else if (imagesBase64 != null && imagesBase64.size() > 0) {
+            if (imagesBase64.size() > 1) {//首帧尾帧
                 videoAgentMessage.setFirstFrameUrl(imagesBase64.get(0));
                 videoAgentMessage.setLastFrameUrl(imagesBase64.get(1));
-                model = "wan2.2-kf2v-flash";
-            }
-            else{
+                if (selectedModel.equals("qwenvlplus")) {
+                    model = "wan2.2-kf2v-flash";
+                }
+
+            } else {//首帧
                 videoAgentMessage.setImgUrl(imagesBase64.get(0));
-                videoAgentMessage.setAudioUrl("https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250923/hbiayh/%E4%BB%8E%E5%86%9B%E8%A1%8C.mp3");
-                model = "wan2.6-i2v-flash";
+
+                if (selectedModel.equals("qwenvlplus")) {
+                    model = "wan2.6-i2v-flash";
+                    videoAgentMessage.setAudioUrl("https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250923/hbiayh/%E4%BB%8E%E5%86%9B%E8%A1%8C.mp3");
+
+                }
             }
-           
+
+        } else {
+            if (selectedModel.equals("qwenvlplus")) {
+                videoAgentMessage.setAudioUrl("https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250923/hbiayh/%E4%BB%8E%E5%86%9B%E8%A1%8C.mp3");
+                model = "wan2.6-t2v";
+            }
+        }
+        if (selectedModel.equals("qwenvlplus")) {
+
+
+            if (videoAgentMessage.getImgUrl() != null) {
+
+                videoAgentMessage
+                        .addParameter("resolution", "1080P")
+                        .addParameter("prompt_extend", true)
+                        .addParameter("duration", 10)
+                        .addParameter("watermark", true)
+                        .addParameter("shot_type", "multi")
+                        .setTemplate("hanfu-1");
+            } else if (videoAgentMessage.getFirstFrameUrl() != null) {
+
+                videoAgentMessage
+                        .addParameter("resolution", "1080P")
+                        .addParameter("prompt_extend", true)
+
+                ;
+            } else {
+
+                videoAgentMessage
+                        .addParameter("size", "1280*720")
+                        .addParameter("prompt_extend", true)
+                        .addParameter("duration", 10)
+                        .addParameter("shot_type", "multi");
+            }
         }
         else{
-            videoAgentMessage.setAudioUrl("https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20250923/hbiayh/%E4%BB%8E%E5%86%9B%E8%A1%8C.mp3");
-            model = "wan2.6-t2v";
+//            https://www.volcengine.com/docs/82379/1520757?lang=zh
+            if (videoAgentMessage.getImgUrl() != null) {
+ 
+                videoAgentMessage.addParameter("generate_audio",true)
+                        .addParameter("ratio","adaptive")
+                        .addParameter("duration",5)
+                        .addParameter("watermark",false);
+            } else if (videoAgentMessage.getFirstFrameUrl() != null) {
+
+                videoAgentMessage.addParameter("generate_audio",true)
+                        .addParameter("ratio","adaptive")
+                        .addParameter("duration",5)
+                        .addParameter("watermark",false);
+
+                ;
+            } else {
+
+                videoAgentMessage.addParameter("ratio", "16:9")
+                        .addParameter("duration", 5)
+                        .addParameter("watermark", false);
+            }
+              
         }
         
-       
-        if(videoAgentMessage.getImgUrl() != null){
-           
-            videoAgentMessage                     
-                    .addParameter("resolution","1080P")
-                    .addParameter("prompt_extend",true)
-                    .addParameter("duration",10)
-                    .addParameter("watermark",true)
-                    .addParameter("shot_type","multi")
-                    .setTemplate("hanfu-1");
-        }
-        else  if(videoAgentMessage.getFirstFrameUrl() != null){
-
-            videoAgentMessage
-                    .addParameter("resolution","1080P")
-                    .addParameter("prompt_extend",true)
-                    
-                   ;
-        }
-        else{
-           
-            videoAgentMessage                     
-                    .addParameter("size","1280*720")
-                    .addParameter("prompt_extend",true)
-                    .addParameter("duration",10)
-                    .addParameter("shot_type","multi");
-        }
+        
         videoAgentMessage.setModel(model);
         videoAgentMessage.setPrompt( message)
                 ;
        AIAgent aiAgent = new AIAgent();
-       VideoTask videoTask = aiAgent.submitVideoTask("qwenvlplus",videoAgentMessage);
+       VideoTask videoTask = aiAgent.submitVideoTask(selectedModel,videoAgentMessage);
       
         return videoTask;
     }
@@ -913,7 +954,7 @@ public class ReactorController implements InitializingBean {
      */
     public @ResponseBody VideoGenResult getVideoTaskResult(@RequestBody Map<String,Object> questions) throws InterruptedException {
         String taskId = questions != null?(String)questions.get("taskId"):null;
-         
+        String selectedModel = (String)questions.get("selectedModel");
         AIAgent aiAgent = new AIAgent();
         VideoStoreAgentMessage videoStoreAgentMessage = new VideoStoreAgentMessage();
         videoStoreAgentMessage.setTaskId(taskId);
@@ -923,7 +964,7 @@ public class ReactorController implements InitializingBean {
                 return "video/" + SimpleStringUtil.getUUID32() + ".mp4";
             }
         });
-        VideoGenResult videoTaskResult = aiAgent.getVideoTaskResult("qwenvlplus", videoStoreAgentMessage);
+        VideoGenResult videoTaskResult = aiAgent.getVideoTaskResult(selectedModel, videoStoreAgentMessage);
          
 //        String requestUrl = "/api/v1/tasks/"+taskId;
 //        Map taskInfo = HttpRequestProxy.httpGetforObject("qwenvlplus",requestUrl,Map.class);
