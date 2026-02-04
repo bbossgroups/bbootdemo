@@ -131,10 +131,14 @@ public class ReactorController implements InitializingBean {
             
             if(deepThink == null || !deepThink) {
                 model = "kimi-k2-turbo-preview";
+                chatAgentMessage.addMapParameter("thinking","type","disabled");//kimi-k2.5禁用思维模式
             }
             else {
-                model = "kimi-k2-thinking";
+                model = "kimi-k2-thinking";                
             }
+
+            chatAgentMessage.setSystemPrompt("你是 Kimi。");
+            model = "kimi-k2.5";
         }
         else if(selectedModel.equals("zhipu")){
 //            completionsUrl =  "/api/paas/v4/chat/completions";
@@ -160,8 +164,8 @@ public class ReactorController implements InitializingBean {
         chatAgentMessage.setSessionMemory(sessionMemory).setSessionSize(50)
         //不配置以下参数时，默认值设置如下
                 .setStream( enableStream)
-                .addParameter("max_tokens", 8192)
-                .addParameter("temperature", 0.7);
+                .addParameter("max_tokens", 8192);
+//                .addParameter("temperature", 0.7);//kimi 2.5不能设置temperature参数
  
        
        
@@ -257,9 +261,12 @@ public class ReactorController implements InitializingBean {
         }
         else if(selectedModel.equals("kimi")){//kimi
 //            completionsUrl =  "/v1/chat/completions";
-            model = "moonshot-v1-8k-vision-preview";
+//            model = "moonshot-v1-8k-vision-preview";
+            model = "kimi-k2.5";
+
+            imageVLAgentMessage.setSystemPrompt("你是 Kimi。");
             //支持思考程度可调节（reasoning effort）：分为 minimal、low、medium、high 四种模式，其中minimal为不思考
-            imageVLAgentMessage.setTemperature(0.6);
+//            imageVLAgentMessage.setTemperature(0.6);
 
         }
         else if(selectedModel.equals("zhipu")){//字节豆包
