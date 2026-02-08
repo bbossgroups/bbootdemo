@@ -21,9 +21,6 @@ import org.frameworkset.spi.ai.AIAgent;
 import org.frameworkset.spi.ai.material.ReponseStoreFilePathFunction;
 import org.frameworkset.spi.ai.material.StoreFilePathFunction;
 import org.frameworkset.spi.ai.model.*;
-import org.frameworkset.spi.ai.util.AIAgentUtil;
-import org.frameworkset.spi.ai.util.AudioDataBuilder;
-import org.frameworkset.spi.ai.util.MessageBuilder;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
 import org.frameworkset.util.annotations.RequestBody;
 import org.frameworkset.util.annotations.RequestParam;
@@ -39,9 +36,11 @@ import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
 import javax.sound.sampled.SourceDataLine;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author biaoping.yin

@@ -5,7 +5,7 @@
 	     指定这些controller所在的根目录
 -->
 <properties>
-	
+	<property name="gloableHttpMethods" value="POST,GET,PUT"/>
 	<!-- 
 		导入mvc的相关文件,属性说明：
 		docbase：配置文件对应的根目录，默认为classpath，这种情况无需指定docbase属性，如果用户需要
@@ -79,9 +79,11 @@
      
       <!-- 配置全局控制器方法拦截器 -->
      <property name="org.frameworkset.web.servlet.gloabel.HandlerInterceptors" >
-     	<list componentType="bean">
-     		 
-     	</list>
+         <list componentType="bean">
+             <property class="org.frameworkset.web.interceptor.Logger2ndJsonExceptionHandlerInterceptor"
+                       f:jsonRedirect="true"
+             />
+         </list>
      </property>
 </properties>
 

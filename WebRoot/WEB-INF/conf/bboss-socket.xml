@@ -14,7 +14,7 @@
     </property>
     
     <property name="/reactor/mono/*.api" class="org.frameworkset.web.react.MonoController"/>
-    <property name="/reactor/*.api" class="org.frameworkset.web.react.ReactorController"/>
+    <property name="/reactor/*.api" httpMethods="POST,GET,PUT" class="org.frameworkset.web.react.ReactorController"/>
 </properties>
 
  
