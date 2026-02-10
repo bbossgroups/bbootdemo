@@ -61,11 +61,9 @@ public class ReactorController implements InitializingBean {
         String message = questions != null ?(String)questions.get("message"):q;
         ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
         chatAgentMessage.setPrompt( message);//当前消息
-        chatAgentMessage.setModel("deepseek-chat");
+        chatAgentMessage.setModel("deepseek-chat").setTemperature(0.7).setMaxTokens(8192);
 
-        chatAgentMessage.addParameter("stream", true);
-        chatAgentMessage.addParameter("max_tokens", 8192);
-        chatAgentMessage.addParameter("temperature", 0.7);
+        chatAgentMessage.setStream( true);
         AIAgent aiAgent = new AIAgent();
         Flux<ServerEvent> flux = aiAgent.streamChat("deepseek",chatAgentMessage);
 
@@ -163,7 +161,7 @@ public class ReactorController implements InitializingBean {
         chatAgentMessage.setSessionMemory(sessionMemory).setSessionSize(50)
         //不配置以下参数时，默认值设置如下
                 .setStream( enableStream)
-                .addParameter("max_tokens", 8192);
+                .setMaxTokens( 8192);
 //                .addParameter("temperature", 0.7);//kimi 2.5不能设置temperature参数
  
        
