@@ -150,7 +150,8 @@ public class ReactorController implements InitializingBean {
         }
         
         else {
-            model = "qwen3-max";
+            model = "qwen3.5-plus";
+            chatAgentMessage.addParameter("enable_thinking",deepThink == null?false:deepThink);
 //            completionsUrl =  "/compatible-mode/v1/chat/completions";//通义千问LLM模型服务地址
             
             
@@ -250,7 +251,7 @@ public class ReactorController implements InitializingBean {
         }
         else if(selectedModel.equals("volcengine")){//字节豆包
 //            completionsUrl =  "/api/v3/chat/completions";
-            model = "doubao-seed-1-8-251228";
+            model = "doubao-seed-2-0-pro-260215";
             //支持思考程度可调节（reasoning effort）：分为 minimal、low、medium、high 四种模式，其中minimal为不思考
             imageVLAgentMessage.addParameter("reasoning_effort", "medium");
             imageVLAgentMessage.addParameter("max_completion_tokens", 65535);
@@ -271,10 +272,10 @@ public class ReactorController implements InitializingBean {
             model = "glm-4.6v";
             //支持思考程度可调节（reasoning effort）：分为 minimal、low、medium、high 四种模式，其中minimal为不思考
             if(deepThink != null && deepThink) {
-                imageVLAgentMessage.addMapParameter("thinking","type","enabled");
+                imageVLAgentMessage.setThinking(true);
             }
             else{
-                imageVLAgentMessage.addMapParameter("thinking","type","disabled");
+                imageVLAgentMessage.setThinking(false);
             }
         }
         
