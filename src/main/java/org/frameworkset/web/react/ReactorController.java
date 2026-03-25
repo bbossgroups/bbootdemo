@@ -20,6 +20,7 @@ import org.frameworkset.spi.InitializingBean;
 import org.frameworkset.spi.ai.AIAgent;
 import org.frameworkset.spi.ai.material.ReponseStoreFilePathFunction;
 import org.frameworkset.spi.ai.material.StoreFilePathFunction;
+import org.frameworkset.spi.ai.mcp.tools.MCPToolsRegist;
 import org.frameworkset.spi.ai.model.*;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
 import org.frameworkset.util.annotations.RequestBody;
@@ -104,7 +105,15 @@ public class ReactorController implements InitializingBean {
         String message = (String)questions.get("message");
         ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
         chatAgentMessage.setPrompt( message);//当前消息
-        
+        if(message.contains("小说") || message.contains("故事") || message.contains("穿越")){
+            chatAgentMessage.setToolsRegist(new MCPToolsRegist("shuqi"));
+        }
+        else if(message.contains("天气") || message.contains("日志")){
+            chatAgentMessage.setToolsRegist(new MCPToolsRegist("visualops"));
+        }
+        else if(message.contains("高铁") || message.contains("票价")){
+            chatAgentMessage.setToolsRegist(new MCPToolsRegist("12306"));
+        }
         //设置模型服务地址
 //        String completionsUrl =  null;
         String model = null;
@@ -120,6 +129,10 @@ public class ReactorController implements InitializingBean {
         }
         else if(selectedModel.equals("minimax")){
             model = "MiniMax-M2.7";
+        }
+
+        else if(selectedModel.equals("hunyuan")){
+            model = "hunyuan-2.0-thinking-20251109";
         }
         else if(selectedModel.equals("jiutian")){
 //            completionsUrl =  "/largemodel/moma/api/v3/chat/completions";
@@ -280,10 +293,10 @@ public class ReactorController implements InitializingBean {
             else{
                 imageVLAgentMessage.setThinking(false);
             }
-        }else if(selectedModel.equals("minimax")){//kimi
+        }else if(selectedModel.equals("hunyuan")){//kimi
 //            completionsUrl =  "/v1/chat/completions";
 //            model = "moonshot-v1-8k-vision-preview";
-            model = "MiniMax-M2.7";
+            model = "hunyuan-vision";
 
             imageVLAgentMessage.setSystemPrompt("你是图片识别专家。");
             if(deepThink != null && deepThink) {
@@ -1016,5 +1029,7 @@ public class ReactorController implements InitializingBean {
     public void afterPropertiesSet() throws Exception {
         //加载模型服务配置文件，启动模型服务智能体工具
         HttpRequestProxy.startHttpPools("application.properties");
+        //加载mcp server配置文件，启动mcp server服务
+        HttpRequestProxy.startHttpPools("mcpserver.properties");
     }
 }
