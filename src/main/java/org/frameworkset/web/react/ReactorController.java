@@ -118,6 +118,9 @@ public class ReactorController implements InitializingBean {
 //            completionsUrl =   "/chat/completions"; //Deepseek LLM模型服务地址
             
         }
+        else if(selectedModel.equals("minimax")){
+            model = "MiniMax-M2.7";
+        }
         else if(selectedModel.equals("jiutian")){
 //            completionsUrl =  "/largemodel/moma/api/v3/chat/completions";
             model = "jiutian-lan-comv3";
@@ -277,6 +280,21 @@ public class ReactorController implements InitializingBean {
             else{
                 imageVLAgentMessage.setThinking(false);
             }
+        }else if(selectedModel.equals("minimax")){//kimi
+//            completionsUrl =  "/v1/chat/completions";
+//            model = "moonshot-v1-8k-vision-preview";
+            model = "MiniMax-M2.7";
+
+            imageVLAgentMessage.setSystemPrompt("你是图片识别专家。");
+            if(deepThink != null && deepThink) {
+                imageVLAgentMessage.setThinking(true);
+            }
+            else{
+                imageVLAgentMessage.setThinking(false);
+            }
+            //支持思考程度可调节（reasoning effort）：分为 minimal、low、medium、high 四种模式，其中minimal为不思考
+//            imageVLAgentMessage.setTemperature(0.6);
+
         }
         
         else if(selectedModel.equals("jiutian")){//字节豆包
@@ -414,7 +432,9 @@ public class ReactorController implements InitializingBean {
         if(selectedModel.equals("volcengine")){
             //字节火山引擎
 //            request.setModelType(AIConstants.AI_MODEL_TYPE_DOUBAO);
-            request.setModel( "doubao-seedream-4-5-251128");
+//            request.setModel( "doubao-seedream-4-5-251128");
+            request.setModel( "doubao-seedream-5-0-260128");
+            
             if(generateMultipleImages) {
                 request.addParameter("sequential_image_generation", "disabled");//生成单图
             }
