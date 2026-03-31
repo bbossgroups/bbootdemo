@@ -20,6 +20,8 @@ import org.frameworkset.spi.InitializingBean;
 import org.frameworkset.spi.ai.AIAgent;
 import org.frameworkset.spi.ai.material.ReponseStoreFilePathFunction;
 import org.frameworkset.spi.ai.material.StoreFilePathFunction;
+import org.frameworkset.spi.ai.mcp.feishu.BaseFeishuConfig;
+import org.frameworkset.spi.ai.mcp.feishu.FeishuMcpRegist;
 import org.frameworkset.spi.ai.mcp.tools.MCPToolsRegist;
 import org.frameworkset.spi.ai.model.*;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
@@ -62,7 +64,7 @@ public class ReactorController implements InitializingBean {
         String message = questions != null ?(String)questions.get("message"):q;
         ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
         chatAgentMessage.setPrompt( message);//当前消息
-        chatAgentMessage.setModel("deepseek-chat").setTemperature(0.7).setMaxTokens(8192);
+        chatAgentMessage.setModel("deepseek-chat").setTemperature(0.7).setMaxTokens(1024L*1024L*1024L);
 
         chatAgentMessage.setStream( true);
         AIAgent aiAgent = new AIAgent();
@@ -113,6 +115,23 @@ public class ReactorController implements InitializingBean {
         }
         else if(message.contains("高铁") || message.contains("票价")){
             chatAgentMessage.setToolsRegist(new MCPToolsRegist("12306"));
+        }
+        else if(message.contains("飞书") || message.contains("文档") || message.contains("知识库")){
+            BaseFeishuConfig baseFeishuConfig = new BaseFeishuConfig();
+            //提示词:创建飞书文档，内容自动生成
+//            bboss应用
+            baseFeishuConfig.setFeishuAppId("cli_a9d43b87aff89cd0")
+                    .setFeishAppSecret("gIhy0EbVfgQGlpNBN8r10gtqMKMnYCJs");
+            //企业关怀应用
+//            baseFeishuConfig.setFeishuAppId("cli_a90feb5dbcb89bc2")
+//                    .setFeishAppSecret("RNhMgNhysTgV5tmK21J6Q5LPtGeKZIsB");
+            baseFeishuConfig.addHttpConfig("http.poolNames", "feishu")
+                    .addHttpConfig("feishu.http.hosts", "https://open.feishu.cn")
+                    .addHttpConfig("feishu.http.maxTotal", 100)
+                    .addHttpConfig("feishu.http.defaultMaxPerRoute", 100)
+                    .setMcpTools("search-user,get-user,fetch-file,search-doc,create-doc,fetch-doc,update-doc,list-docs,get-comments,add-comments");
+            ;
+            chatAgentMessage.setToolsRegist(new FeishuMcpRegist("feishumcp",baseFeishuConfig));
         }
         //设置模型服务地址
 //        String completionsUrl =  null;
@@ -178,7 +197,7 @@ public class ReactorController implements InitializingBean {
         chatAgentMessage.setSessionMemory(sessionMemory).setSessionSize(50)
         //不配置以下参数时，默认值设置如下
                 .setStream( enableStream)
-                .setMaxTokens( 8192);
+                .setMaxTokens( 8192L);
 //                .addParameter("temperature", 0.7);//kimi 2.5不能设置temperature参数
  
        
@@ -207,9 +226,16 @@ public class ReactorController implements InitializingBean {
             // 处理模型响应并更新会话记忆
             for(ServerEvent event : bufferedEvents) {
                 //答案前后都可以添加链接和标题，实现相关知识资料链接
-                if(event.isFirst() || event.isDone()){
-                    event.addExtendData("url","https://www.bbossgroups.com");
-                    event.addExtendData("title","bboss官网");
+                if(event.isFirst() ){
+                    if(!event.isToolCallResponse()) {
+                        event.addExtendData("url", "https://www.bbossgroups.com");
+                        event.addExtendData("title", "bboss官网");
+                    }
+                }
+
+                if(event.isDone()){
+                        event.addExtendData("url", "https://www.bbossgroups.com");
+                        event.addExtendData("title", "bboss官网");
                 }
                 if(!event.isDone() ) {
                     // 累积回答内容
