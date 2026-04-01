@@ -175,12 +175,12 @@ public class ReactorController implements InitializingBean {
         else if(selectedModel.equals("zhipu")){
 //            completionsUrl =  "/api/paas/v4/chat/completions";
 
-            model = "glm-4.7";
+            model = "glm-5";
             if(deepThink != null && deepThink) {
-                chatAgentMessage.addMapParameter("thinking","type","enabled");
+                chatAgentMessage.setThinking(true);
             }
             else{
-                chatAgentMessage.addMapParameter("thinking","type","disabled");
+                chatAgentMessage.setThinking(false);
             }
         }
         
@@ -904,6 +904,9 @@ public class ReactorController implements InitializingBean {
         if(selectedModel.equals("volcengine")){
             model = "doubao-seedance-1-5-pro-251215";
         }
+        else if(selectedModel.equals("zhipu")){
+            model = "cogvideox-3";
+        }
         
         if (SimpleStringUtil.isNotEmpty(imageUrl)) {
             if (imageUrl.indexOf(",") > 0) {
@@ -974,7 +977,7 @@ public class ReactorController implements InitializingBean {
                         .addParameter("shot_type", "multi");
             }
         }
-        else{
+        else if(selectedModel.equals("volcengine")){
 //            https://www.volcengine.com/docs/82379/1520757?lang=zh
             if (videoAgentMessage.getImgUrl() != null) {
  
@@ -997,6 +1000,13 @@ public class ReactorController implements InitializingBean {
                         .addParameter("watermark", false);
             }
               
+        }
+        else if(selectedModel.equals("zhipu")){
+            videoAgentMessage.addParameter("quality", "quality")
+                    .addParameter("with_audio",true)
+                    .addParameter("size", "1920x1080")
+                    .addParameter("fps", 30)
+                    .addParameter("movement_amplitude","auto");
         }
         
         
@@ -1026,6 +1036,10 @@ public class ReactorController implements InitializingBean {
             @Override
             public String getStoreFilePath(String imageUrl) {
                 return "video/" + SimpleStringUtil.getUUID32() + ".mp4";
+            }
+            
+            public String getVideoImageStoreFilePath(String videoImageUrl){
+                return "video/" + SimpleStringUtil.getUUID32() + ".png";
             }
         });
         VideoGenResult videoTaskResult = aiAgent.getVideoTaskResult(selectedModel, videoStoreAgentMessage);
