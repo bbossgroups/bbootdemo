@@ -120,11 +120,11 @@ public class ReactorController implements InitializingBean {
             BaseFeishuConfig baseFeishuConfig = new BaseFeishuConfig();
             //提示词:创建飞书文档，内容自动生成
 //            bboss应用
-            baseFeishuConfig.setFeishuAppId("cli_a9d43b87aff89cd0")
-                    .setFeishAppSecret("gIhy0EbVfgQGlpNBN8r10gtqMKMnYCJs");
+            baseFeishuConfig.setFeishuAppId("cli_a9d43b8f89cd0")
+                    .setFeishAppSecret("gIhy0EbVfgQGlpNB10gtqMKMnYCJs");
             //企业关怀应用
-//            baseFeishuConfig.setFeishuAppId("cli_a90feb5dbcb89bc2")
-//                    .setFeishAppSecret("RNhMgNhysTgV5tmK21J6Q5LPtGeKZIsB");
+//            baseFeishuConfig.setFeishuAppId("cli_a905dbcb89bc2")
+//                    .setFeishAppSecret("RNhMgNhysTgVK21J6Q5LPtGeKZIsB");
             baseFeishuConfig.addHttpConfig("http.poolNames", "feishu")
                     .addHttpConfig("feishu.http.hosts", "https://open.feishu.cn")
                     .addHttpConfig("feishu.http.maxTotal", 100)
