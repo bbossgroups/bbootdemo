@@ -20,10 +20,10 @@ import org.frameworkset.spi.InitializingBean;
 import org.frameworkset.spi.ai.AIAgent;
 import org.frameworkset.spi.ai.material.ReponseStoreFilePathFunction;
 import org.frameworkset.spi.ai.material.StoreFilePathFunction;
-import org.frameworkset.spi.ai.mcp.feishu.BaseFeishuConfig;
 import org.frameworkset.spi.ai.mcp.feishu.FeishuMcpRegist;
 import org.frameworkset.spi.ai.mcp.tools.MCPToolsRegist;
 import org.frameworkset.spi.ai.model.*;
+import org.frameworkset.spi.feishu.BaseFeishuConfig;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
 import org.frameworkset.util.annotations.RequestBody;
 import org.frameworkset.util.annotations.RequestParam;
@@ -117,21 +117,12 @@ public class ReactorController implements InitializingBean {
             chatAgentMessage.setToolsRegist(new MCPToolsRegist("12306"));
         }
         else if(message.contains("飞书") || message.contains("文档") || message.contains("知识库")){
-            BaseFeishuConfig baseFeishuConfig = new BaseFeishuConfig();
             //提示词:创建飞书文档，内容自动生成
-//            bboss应用
-            baseFeishuConfig.setFeishuAppId("cli_a9d43b8f89cd0")
-                    .setFeishAppSecret("gIhy0EbVfgQGlpNB10gtqMKMnYCJs");
-            //企业关怀应用
-//            baseFeishuConfig.setFeishuAppId("cli_a905dbcb89bc2")
-//                    .setFeishAppSecret("RNhMgNhysTgVK21J6Q5LPtGeKZIsB");
-            baseFeishuConfig.addHttpConfig("http.poolNames", "feishu")
-                    .addHttpConfig("feishu.http.hosts", "https://open.feishu.cn")
-                    .addHttpConfig("feishu.http.maxTotal", 100)
-                    .addHttpConfig("feishu.http.defaultMaxPerRoute", 100)
-                    .setMcpTools("search-user,get-user,fetch-file,search-doc,create-doc,fetch-doc,update-doc,list-docs,get-comments,add-comments");
-            ;
-            chatAgentMessage.setToolsRegist(new FeishuMcpRegist("feishumcp",baseFeishuConfig));
+
+            //            bboss应用
+            chatAgentMessage.setToolsRegist(new FeishuMcpRegist("feishumcp",
+                    "cli_a9d43b8aff89cd0","gIhy0EbVfgQGlpNB8r10gtqMKMnYCJs",
+                    "search-user,get-user,fetch-file,search-doc,create-doc,fetch-doc,update-doc,list-docs,get-comments,add-comments"));
         }
         //设置模型服务地址
 //        String completionsUrl =  null;
@@ -194,7 +185,7 @@ public class ReactorController implements InitializingBean {
         //设置模型
         chatAgentMessage.setModel( model);
         //设置历史消息
-        chatAgentMessage.setSessionMemory(sessionMemory).setSessionSize(50)
+        chatAgentMessage.setSessionMemory(sessionMemory,50)
         //不配置以下参数时，默认值设置如下
                 .setStream( enableStream)
                 .setMaxTokens( 8192L);
@@ -255,6 +246,178 @@ public class ReactorController implements InitializingBean {
                 }
             }
         });
+    }
+
+
+    /**
+     * 使用标准化API实现流式异步/同步智能问答功能，带背压案例 和多轮会话记忆功能（完善版）
+     * http://127.0.0.1/demoproject/chatBackuppressSession.html
+     * @param questions
+     * @return
+     */
+    public Flux<List<ServerEvent>> multiagent(@RequestBody Map<String,Object> questions) {
+
+        String selectedModel = (String)questions.get("selectedModel");
+        Boolean reset = (Boolean) questions.get("reset");
+        Boolean deepThink = (Boolean) questions.get("deepThink");
+        Boolean enableStream = (Boolean) questions.get("enableStream");
+
+        //重置会议记忆窗口
+        if(reset != null && reset){
+            sessionMemory.clear();
+        }
+        
+        String message = (String)questions.get("message");
+        ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
+        chatAgentMessage.setPrompt( message);//当前消息
+        if(message.contains("小说") || message.contains("故事") || message.contains("穿越")){
+            chatAgentMessage.setToolsRegist(new MCPToolsRegist("shuqi"));
+        }
+        else if(message.contains("天气") || message.contains("日志")){
+            chatAgentMessage.setToolsRegist(new MCPToolsRegist("visualops"));
+        }
+        else if(message.contains("高铁") || message.contains("票价")){
+            chatAgentMessage.setToolsRegist(new MCPToolsRegist("12306"));
+        }
+        else if(message.contains("飞书") || message.contains("文档") || message.contains("知识库")){
+            BaseFeishuConfig baseFeishuConfig = new BaseFeishuConfig();
+            //提示词:创建飞书文档，内容自动生成
+//            bboss应用
+            baseFeishuConfig.setFeishuAppId("cli_a9d43b87aff89cd0")
+                    .setFeishAppSecret("gIhy0EbVfgQGlpNBN8r10gtqMKMnYCJs");
+            //企业关怀应用
+//            baseFeishuConfig.setFeishuAppId("cli_a90feb5dbcb89bc2")
+//                    .setFeishAppSecret("RNhMgNhysTgV5tmK21J6Q5LPtGeKZIsB");
+            baseFeishuConfig.addHttpConfig("http.poolNames", "feishu")
+                    .addHttpConfig("feishu.http.hosts", "https://open.feishu.cn")
+                    .addHttpConfig("feishu.http.maxTotal", 100)
+                    .addHttpConfig("feishu.http.defaultMaxPerRoute", 100)
+                    .setMcpTools("search-user,get-user,fetch-file,search-doc,create-doc,fetch-doc,update-doc,list-docs,get-comments,add-comments");
+            ;
+            chatAgentMessage.setToolsRegist(new FeishuMcpRegist("feishumcp",baseFeishuConfig));
+        }
+        //设置模型服务地址
+//        String completionsUrl =  null;
+        String model = null;
+        if(selectedModel.equals("deepseek")) {
+            if(deepThink == null || !deepThink) {
+                model = "deepseek-chat";
+            }
+            else {
+                model = "deepseek-reasoner";
+            }
+//            completionsUrl =   "/chat/completions"; //Deepseek LLM模型服务地址
+
+        }
+        else if(selectedModel.equals("minimax")){
+            model = "MiniMax-M2.7";
+        }
+
+        else if(selectedModel.equals("hunyuan")){
+            model = "hunyuan-2.0-thinking-20251109";
+        }
+        else if(selectedModel.equals("jiutian")){
+//            completionsUrl =  "/largemodel/moma/api/v3/chat/completions";
+            model = "jiutian-lan-comv3";
+        }
+        else if(selectedModel.equals("kimi")){
+//            completionsUrl =  "/v1/chat/completions";
+
+
+            if(deepThink == null || !deepThink) {
+                model = "kimi-k2-turbo-preview";
+                chatAgentMessage.addMapParameter("thinking","type","disabled");//kimi-k2.5禁用思维模式
+            }
+            else {
+                model = "kimi-k2-thinking";
+            }
+
+            chatAgentMessage.setSystemPrompt("你是 Kimi。");
+            model = "kimi-k2.5";
+        }
+        else if(selectedModel.equals("zhipu")){
+//            completionsUrl =  "/api/paas/v4/chat/completions";
+
+            model = "glm-5";
+            if(deepThink != null && deepThink) {
+                chatAgentMessage.setThinking(true);
+            }
+            else{
+                chatAgentMessage.setThinking(false);
+            }
+        }
+
+        else {
+            model = "qwen3.5-plus";
+            chatAgentMessage.addParameter("enable_thinking",deepThink == null?false:deepThink);
+//            completionsUrl =  "/compatible-mode/v1/chat/completions";//通义千问LLM模型服务地址
+
+
+        }
+        //设置模型
+        chatAgentMessage.setModel( model);
+        //设置历史消息
+        chatAgentMessage.setSessionMemory(sessionMemory,50)
+                //不配置以下参数时，默认值设置如下
+                .setStream( enableStream)
+                .setMaxTokens( 8192L);
+//                .addParameter("temperature", 0.7);//kimi 2.5不能设置temperature参数
+
+
+
+
+        //提交会话请求：由enableStream参数控制流式异步/同步会话模式，true 异步  false 同步
+        AIAgent aiAgent = new AIAgent();
+        Flux<ServerEvent> flux = aiAgent.streamChat(selectedModel,chatAgentMessage);
+
+        // 用于累积完整的回答
+        StringBuilder completeAnswer = new StringBuilder();
+
+        return flux.doOnNext(chunk -> {
+
+                    //调试模式：输出流水会话片段到日志文件中
+                    if(logger.isDebugEnabled()) {
+                        if (!chunk.isDone()) {
+                            logger.debug(chunk.getData());
+                        }
+                    }
+
+                })
+                .limitRate(5) //背压：限制请求速率
+                .buffer(3) //缓冲：每3个元素缓冲一次
+                .doOnNext(bufferedEvents -> {
+                    // 处理模型响应并更新会话记忆
+                    for(ServerEvent event : bufferedEvents) {
+                        //答案前后都可以添加链接和标题，实现相关知识资料链接
+                        if(event.isFirst() ){
+                            if(!event.isToolCallResponse()) {
+                                event.addExtendData("url", "https://www.bbossgroups.com");
+                                event.addExtendData("title", "bboss官网");
+                            }
+                        }
+
+                        if(event.isDone()){
+                            event.addExtendData("url", "https://www.bbossgroups.com");
+                            event.addExtendData("title", "bboss官网");
+                        }
+                        if(!event.isDone() ) {
+                            // 累积回答内容
+                            if(event.getData() != null) {
+                                completeAnswer.append(event.getData());
+                            }
+                        } else  {
+
+                            if( completeAnswer.length() > 0) {
+                                // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
+                                chatAgentMessage.addSessionMessage(completeAnswer.toString());
+
+
+                            }
+
+
+                        }
+                    }
+                });
     }
 
     /**
@@ -359,8 +522,7 @@ public class ReactorController implements InitializingBean {
         }
         imageVLAgentMessage.setModel( model);
         // 构建消息历史列表，包含之前的会话记忆
-        imageVLAgentMessage.setSessionMemory(sessionMemory);
-        imageVLAgentMessage.setSessionSize(50);
+        imageVLAgentMessage.setSessionMemory(sessionMemory,50);
 
         List<String> imagesBase64  = (List)questions.get("imagesBase64");
         String imageUrl = (String)questions.get("imageUrl");
@@ -663,8 +825,7 @@ public class ReactorController implements InitializingBean {
         }
         audioSTTAgentMessage.setModel(model);
         // 构建消息历史列表，包含之前的会话记忆,语音识别模型本身无法实现多轮会话，如果要多轮会话，需切换支持多轮会话的模型，例如LLM和千问图片识别模型
-        audioSTTAgentMessage.setSessionMemory(sessionMemory);
-        audioSTTAgentMessage.setSessionSize(50);
+        audioSTTAgentMessage.setSessionMemory(sessionMemory,50);
         // 添加当前用户消息
         audioSTTAgentMessage.setPrompt( message);
         
