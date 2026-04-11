@@ -23,6 +23,8 @@ import org.frameworkset.spi.ai.material.StoreFilePathFunction;
 import org.frameworkset.spi.ai.mcp.feishu.FeishuMcpRegist;
 import org.frameworkset.spi.ai.mcp.tools.MCPToolsRegist;
 import org.frameworkset.spi.ai.model.*;
+import org.frameworkset.spi.ai.store.AgentSessionStoreMemory;
+import org.frameworkset.spi.ai.store.StoreContext;
 import org.frameworkset.spi.feishu.BaseFeishuConfig;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
 import org.frameworkset.util.annotations.RequestBody;
@@ -40,7 +42,6 @@ import javax.sound.sampled.DataLine;
 import javax.sound.sampled.SourceDataLine;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +54,6 @@ public class ReactorController implements InitializingBean {
     private Logger logger = LoggerFactory.getLogger(ReactorController.class);
      
     // 多轮会话记忆窗口：使用静态List变量模拟存储会话记忆（实际项目中建议使用数据库）
-    static List<Map<String, Object>> sessionMemory = new ArrayList<>();
     /**
      * http://127.0.0.1:808/demoproject/chatpost.html
      * http://127.0.0.1:808/demoproject/reactor/deepseekChat.api?q=%E7%94%A8Java%E8%A7%A3%E9%87%8AReactor%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%BC%8F
@@ -93,20 +93,22 @@ public class ReactorController implements InitializingBean {
      * @param questions
      * @return
      */
-    public Flux<List<ServerEvent>> deepseekBackuppressSession(@RequestBody Map<String,Object> questions) {
+    public Flux<List<ServerEvent>> deepseekBackuppressSession(@RequestBody Map<String,Object> questions,HttpServletRequest request) {
 
         String selectedModel = (String)questions.get("selectedModel");
         Boolean reset = (Boolean) questions.get("reset");
         Boolean deepThink = (Boolean) questions.get("deepThink");
         Boolean enableStream = (Boolean) questions.get("enableStream");
-
+        String sessionId = (String)questions.get("sessionId");       
         //重置会议记忆窗口
-        if(reset != null && reset){
-            sessionMemory.clear();
+        if(reset != null && reset && sessionId != null){
+            AgentSessionStoreMemory.removeSession(sessionId);
         }
         String message = (String)questions.get("message");
         ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
-        chatAgentMessage.setPrompt( message);//当前消息
+        chatAgentMessage.setPrompt( message).setStoreContext(new StoreContext()
+                .setSessionId(sessionId)
+                .setSessionSize(50));//当前消息
         if(message.contains("小说") || message.contains("故事") || message.contains("穿越")){
             chatAgentMessage.setToolsRegist(new MCPToolsRegist("shuqi"));
         }
@@ -166,7 +168,7 @@ public class ReactorController implements InitializingBean {
         else if(selectedModel.equals("zhipu")){
 //            completionsUrl =  "/api/paas/v4/chat/completions";
 
-            model = "glm-5";
+            model = "glm-5.1";
             if(deepThink != null && deepThink) {
                 chatAgentMessage.setThinking(true);
             }
@@ -182,10 +184,11 @@ public class ReactorController implements InitializingBean {
             
             
         }
+        
         //设置模型
         chatAgentMessage.setModel( model);
         //设置历史消息
-        chatAgentMessage.setSessionMemory(sessionMemory,50)
+        chatAgentMessage
         //不配置以下参数时，默认值设置如下
                 .setStream( enableStream)
                 .setMaxTokens( 8192L);
@@ -237,7 +240,7 @@ public class ReactorController implements InitializingBean {
                     
                     if( completeAnswer.length() > 0) {
                         // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                        chatAgentMessage.addSessionMessage(completeAnswer.toString());
+                        chatAgentMessage.addAgentResultSessionMessage(completeAnswer.toString());
                         
                        
                     }
@@ -262,13 +265,14 @@ public class ReactorController implements InitializingBean {
         Boolean deepThink = (Boolean) questions.get("deepThink");
         Boolean enableStream = (Boolean) questions.get("enableStream");
 
+        String sessionId = (String)questions.get("sessionId");
         //重置会议记忆窗口
-        if(reset != null && reset){
-            sessionMemory.clear();
+        if(reset != null && reset && sessionId != null){
+            AgentSessionStoreMemory.removeSession(sessionId);
         }
-        
+        ChatAgentMessage chatAgentMessage = new ChatAgentMessage().setStoreContext(new StoreContext().setSessionId(sessionId));
         String message = (String)questions.get("message");
-        ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
+        
         chatAgentMessage.setPrompt( message);//当前消息
         if(message.contains("小说") || message.contains("故事") || message.contains("穿越")){
             chatAgentMessage.setToolsRegist(new MCPToolsRegist("shuqi"));
@@ -285,13 +289,8 @@ public class ReactorController implements InitializingBean {
 //            bboss应用
             baseFeishuConfig.setFeishuAppId("cli_a9d43b87aff89cd0")
                     .setFeishAppSecret("gIhy0EbVfgQGlpNBN8r10gtqMKMnYCJs");
-            //企业关怀应用
-//            baseFeishuConfig.setFeishuAppId("cli_a90feb5dbcb89bc2")
-//                    .setFeishAppSecret("RNhMgNhysTgV5tmK21J6Q5LPtGeKZIsB");
-            baseFeishuConfig.addHttpConfig("http.poolNames", "feishu")
-                    .addHttpConfig("feishu.http.hosts", "https://open.feishu.cn")
-                    .addHttpConfig("feishu.http.maxTotal", 100)
-                    .addHttpConfig("feishu.http.defaultMaxPerRoute", 100)
+
+            baseFeishuConfig
                     .setMcpTools("search-user,get-user,fetch-file,search-doc,create-doc,fetch-doc,update-doc,list-docs,get-comments,add-comments");
             ;
             chatAgentMessage.setToolsRegist(new FeishuMcpRegist("feishumcp",baseFeishuConfig));
@@ -338,7 +337,7 @@ public class ReactorController implements InitializingBean {
         else if(selectedModel.equals("zhipu")){
 //            completionsUrl =  "/api/paas/v4/chat/completions";
 
-            model = "glm-5";
+            model = "glm-5.1";
             if(deepThink != null && deepThink) {
                 chatAgentMessage.setThinking(true);
             }
@@ -357,7 +356,7 @@ public class ReactorController implements InitializingBean {
         //设置模型
         chatAgentMessage.setModel( model);
         //设置历史消息
-        chatAgentMessage.setSessionMemory(sessionMemory,50)
+        chatAgentMessage 
                 //不配置以下参数时，默认值设置如下
                 .setStream( enableStream)
                 .setMaxTokens( 8192L);
@@ -409,7 +408,7 @@ public class ReactorController implements InitializingBean {
 
                             if( completeAnswer.length() > 0) {
                                 // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                                chatAgentMessage.addSessionMessage(completeAnswer.toString());
+                                chatAgentMessage.addAgentResultSessionMessage(completeAnswer.toString());
 
 
                             }
@@ -430,9 +429,13 @@ public class ReactorController implements InitializingBean {
         String selectedModel = (String)questions.get("selectedModel");
         Boolean reset = (Boolean) questions.get("reset");
         Boolean enableStream = (Boolean) questions.get("enableStream");
-        if(reset != null && reset){
-            sessionMemory.clear();
+        String sessionId = (String)questions.get("sessionId");
+        //重置会议记忆窗口
+        if(reset != null && reset && sessionId != null){
+            AgentSessionStoreMemory.removeSession(sessionId);
         }
+        ImageVLAgentMessage imageVLAgentMessage = new ImageVLAgentMessage();
+        imageVLAgentMessage.setStoreContext(new StoreContext().setSessionId(sessionId));
         Boolean deepThink = (Boolean) questions.get("deepThink");
         // enable_thinking 参数开启思考过程，thinking_budget 参数设置最大推理过程 Token 数
         if(deepThink == null)
@@ -442,7 +445,7 @@ public class ReactorController implements InitializingBean {
         if(SimpleStringUtil.isEmpty( message)){
             message = "介绍图片内容并计算结果";
         }
-        ImageVLAgentMessage imageVLAgentMessage = new ImageVLAgentMessage();
+       
         imageVLAgentMessage.setPrompt(message);
         String model= null;
 //        String completionsUrl = null;
@@ -521,8 +524,7 @@ public class ReactorController implements InitializingBean {
             }
         }
         imageVLAgentMessage.setModel( model);
-        // 构建消息历史列表，包含之前的会话记忆
-        imageVLAgentMessage.setSessionMemory(sessionMemory,50);
+        
 
         List<String> imagesBase64  = (List)questions.get("imagesBase64");
         String imageUrl = (String)questions.get("imageUrl");
@@ -596,7 +598,7 @@ public class ReactorController implements InitializingBean {
                             
                             if( completeAnswer.length() > 0) {
                                 // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                                imageVLAgentMessage.addSessionMessage(completeAnswer.toString());
+                                imageVLAgentMessage.addAgentResultSessionMessage(completeAnswer.toString());
                                
                             }
 
@@ -790,16 +792,20 @@ public class ReactorController implements InitializingBean {
         if(t != null && t.equals("true")){
             enableStream = true;
         }
-        if (reset != null && reset.equals("true")) {
-            sessionMemory.clear();
+        String sessionId =  request.getParameter("sessionId");
+        //重置会议记忆窗口
+        if(reset != null && reset.equals("true") && sessionId != null){
+            AgentSessionStoreMemory.removeSession(sessionId);
         }
+        AudioSTTAgentMessage audioSTTAgentMessage = new AudioSTTAgentMessage();
+        audioSTTAgentMessage.setStoreContext(new StoreContext().setSessionId(sessionId));
         String message = null;
         message = request.getParameter("message");
         if (SimpleStringUtil.isEmpty(message)) {
             message = "介绍音频内容";
         }
     
-        AudioSTTAgentMessage audioSTTAgentMessage = new AudioSTTAgentMessage();
+        
         audioSTTAgentMessage.setStream(enableStream);
         String model = null;
         String completionUrl = null;
@@ -825,7 +831,6 @@ public class ReactorController implements InitializingBean {
         }
         audioSTTAgentMessage.setModel(model);
         // 构建消息历史列表，包含之前的会话记忆,语音识别模型本身无法实现多轮会话，如果要多轮会话，需切换支持多轮会话的模型，例如LLM和千问图片识别模型
-        audioSTTAgentMessage.setSessionMemory(sessionMemory,50);
         // 添加当前用户消息
         audioSTTAgentMessage.setPrompt( message);
         
@@ -859,7 +864,7 @@ public class ReactorController implements InitializingBean {
                 } else {
                     if (completeAnswer.length() > 0) {
                         // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                        audioSTTAgentMessage.addSessionMessage(completeAnswer.toString());
+                        audioSTTAgentMessage.addAgentResultSessionMessage(completeAnswer.toString());
 
                     }
                 }
