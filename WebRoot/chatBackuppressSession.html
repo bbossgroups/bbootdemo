@@ -127,6 +127,13 @@
             this.eventSource = null;
             this.abortController = null;
             this.isStreaming = false;
+            function generateUUID32() {
+                return 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'.replace(/[x]/g, function() {
+                    var r = Math.random() * 16 | 0;
+                    return r.toString(16);
+                });
+            }
+            this.sessionId = generateUUID32();
 
             this.audioQueue = [];
             this.isPlaying = false;
@@ -665,7 +672,8 @@
                 selectedModel: selectedModel,
                 deepThink: deepThink,
                 // 添加stream参数
-                enableStream: enableStream
+                enableStream: enableStream,
+                sessionId: this.sessionId
             };
             // 仅对IMAGE2IMG模型添加多图参数
             if (this.modelType === 'IMAGE' || this.modelType === 'IMAGE2IMG') {

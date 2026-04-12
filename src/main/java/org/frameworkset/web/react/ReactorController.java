@@ -105,25 +105,28 @@ public class ReactorController implements InitializingBean {
             AgentSessionStoreMemory.removeSession(sessionId);
         }
         String message = (String)questions.get("message");
+        AIAgent aiAgent = new AIAgent();
+        
+        
         ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
         chatAgentMessage.setPrompt( message).setStoreContext(new StoreContext()
-                .setSessionId(sessionId)
+                .setSessionId(sessionId).setUserId("user123")
                 .setSessionSize(50));//当前消息
         if(message.contains("小说") || message.contains("故事") || message.contains("穿越")){
-            chatAgentMessage.setToolsRegist(new MCPToolsRegist("shuqi"));
+            aiAgent.setToolsRegist(new MCPToolsRegist("shuqi"));
         }
         else if(message.contains("天气") || message.contains("日志")){
-            chatAgentMessage.setToolsRegist(new MCPToolsRegist("visualops"));
+            aiAgent.setToolsRegist(new MCPToolsRegist("visualops"));
         }
         else if(message.contains("高铁") || message.contains("票价")){
-            chatAgentMessage.setToolsRegist(new MCPToolsRegist("12306"));
+            aiAgent.setToolsRegist(new MCPToolsRegist("12306"));
         }
         else if(message.contains("飞书") || message.contains("文档") || message.contains("知识库")){
             //提示词:创建飞书文档，内容自动生成
 
             //            bboss应用
-            chatAgentMessage.setToolsRegist(new FeishuMcpRegist("feishumcp",
-                    "cli_a9d43b8aff89cd0","gIhy0EbVfgQGlpNB8r10gtqMKMnYCJs",
+            aiAgent.setToolsRegist(new FeishuMcpRegist("feishumcp",
+                    "cli_a9d43b8aff89cd1","gIhy0EbVfgQGlpNB8r10gtqMKMnYCJs",
                     "search-user,get-user,fetch-file,search-doc,create-doc,fetch-doc,update-doc,list-docs,get-comments,add-comments"));
         }
         //设置模型服务地址
@@ -178,7 +181,7 @@ public class ReactorController implements InitializingBean {
         }
         
         else {
-            model = "qwen3.5-plus";
+            model = "qwen3.6-plus";
             chatAgentMessage.addParameter("enable_thinking",deepThink == null?false:deepThink);
 //            completionsUrl =  "/compatible-mode/v1/chat/completions";//通义千问LLM模型服务地址
             
@@ -198,7 +201,7 @@ public class ReactorController implements InitializingBean {
        
         
         //提交会话请求：由enableStream参数控制流式异步/同步会话模式，true 异步  false 同步
-        AIAgent aiAgent = new AIAgent();
+      
         Flux<ServerEvent> flux = aiAgent.streamChat(selectedModel,chatAgentMessage);
     
         // 用于累积完整的回答
@@ -240,7 +243,7 @@ public class ReactorController implements InitializingBean {
                     
                     if( completeAnswer.length() > 0) {
                         // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                        chatAgentMessage.addAgentResultSessionMessage(completeAnswer.toString());
+                        chatAgentMessage.addAgentResultSessionMessage(completeAnswer.toString(),aiAgent);
                         
                        
                     }
@@ -270,18 +273,19 @@ public class ReactorController implements InitializingBean {
         if(reset != null && reset && sessionId != null){
             AgentSessionStoreMemory.removeSession(sessionId);
         }
+        AIAgent aiAgent = new AIAgent();
         ChatAgentMessage chatAgentMessage = new ChatAgentMessage().setStoreContext(new StoreContext().setSessionId(sessionId));
         String message = (String)questions.get("message");
         
         chatAgentMessage.setPrompt( message);//当前消息
         if(message.contains("小说") || message.contains("故事") || message.contains("穿越")){
-            chatAgentMessage.setToolsRegist(new MCPToolsRegist("shuqi"));
+            aiAgent.setToolsRegist(new MCPToolsRegist("shuqi"));
         }
         else if(message.contains("天气") || message.contains("日志")){
-            chatAgentMessage.setToolsRegist(new MCPToolsRegist("visualops"));
+            aiAgent.setToolsRegist(new MCPToolsRegist("visualops"));
         }
         else if(message.contains("高铁") || message.contains("票价")){
-            chatAgentMessage.setToolsRegist(new MCPToolsRegist("12306"));
+            aiAgent.setToolsRegist(new MCPToolsRegist("12306"));
         }
         else if(message.contains("飞书") || message.contains("文档") || message.contains("知识库")){
             BaseFeishuConfig baseFeishuConfig = new BaseFeishuConfig();
@@ -293,7 +297,7 @@ public class ReactorController implements InitializingBean {
             baseFeishuConfig
                     .setMcpTools("search-user,get-user,fetch-file,search-doc,create-doc,fetch-doc,update-doc,list-docs,get-comments,add-comments");
             ;
-            chatAgentMessage.setToolsRegist(new FeishuMcpRegist("feishumcp",baseFeishuConfig));
+            aiAgent.setToolsRegist(new FeishuMcpRegist("feishumcp",baseFeishuConfig));
         }
         //设置模型服务地址
 //        String completionsUrl =  null;
@@ -347,7 +351,7 @@ public class ReactorController implements InitializingBean {
         }
 
         else {
-            model = "qwen3.5-plus";
+            model = "qwen3.6-plus";
             chatAgentMessage.addParameter("enable_thinking",deepThink == null?false:deepThink);
 //            completionsUrl =  "/compatible-mode/v1/chat/completions";//通义千问LLM模型服务地址
 
@@ -366,7 +370,7 @@ public class ReactorController implements InitializingBean {
 
 
         //提交会话请求：由enableStream参数控制流式异步/同步会话模式，true 异步  false 同步
-        AIAgent aiAgent = new AIAgent();
+       
         Flux<ServerEvent> flux = aiAgent.streamChat(selectedModel,chatAgentMessage);
 
         // 用于累积完整的回答
@@ -408,7 +412,7 @@ public class ReactorController implements InitializingBean {
 
                             if( completeAnswer.length() > 0) {
                                 // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                                chatAgentMessage.addAgentResultSessionMessage(completeAnswer.toString());
+                                chatAgentMessage.addAgentResultSessionMessage(completeAnswer.toString(),aiAgent);
 
 
                             }
@@ -598,7 +602,7 @@ public class ReactorController implements InitializingBean {
                             
                             if( completeAnswer.length() > 0) {
                                 // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                                imageVLAgentMessage.addAgentResultSessionMessage(completeAnswer.toString());
+                                imageVLAgentMessage.addAgentResultSessionMessage(completeAnswer.toString(),aiAgent);
                                
                             }
 
@@ -864,7 +868,7 @@ public class ReactorController implements InitializingBean {
                 } else {
                     if (completeAnswer.length() > 0) {
                         // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                        audioSTTAgentMessage.addAgentResultSessionMessage(completeAnswer.toString());
+                        audioSTTAgentMessage.addAgentResultSessionMessage(completeAnswer.toString(),aiAgent);
 
                     }
                 }
