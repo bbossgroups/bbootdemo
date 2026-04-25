@@ -51,6 +51,8 @@
         <label for="model-select">选择模型:</label>
         <select id="model-select">
             <option type="LLM" value="deepseek" selected>DeepSeek-LLM</option>
+            <option type="LLM" value="openai">chatgpt-LLM</option>
+            
             <option type="LLM" value="qwenvlplus">通义千问-LLM</option>
             <option type="LLM" value="jiutian">九天-LLM</option>
             <option type="LLM" value="kimi">kimi-LLM</option>
@@ -84,7 +86,7 @@
             <option type="AUDIO" value="qwenvlplus">qwen3-asr-flash（百炼语音识别）</option>
             <option type="AUDIO" value="zhipu">glm-asr（智谱语音识别）</option>
             <option type="VIDEO" value="qwenvlplus">wan2.5-t2v-preview（百炼视频生成）</option>
-            <option type="VIDEO" value="volcengine">doubao-seedance-1-5-pro-251215（豆包视频生成）</option>
+            <option type="VIDEO" value="volcengine">doubao-seedance-2-0-260128（豆包视频生成）</option>
             <option type="VIDEO" value="zhipu">cogvideox-3（智谱视频生成）</option>
 
         </select>
@@ -371,8 +373,14 @@
             let content = `<div><strong>任务ID:</strong> ${data.taskId || 'N/A'}</div>`;
             content += `<div><strong>任务状态:</strong> ${status}</div>`;
             content += `<div><strong>任务提交时间:</strong> ${data.submitTime}</div>`;
-            content += `<div><strong>任务执行时间:</strong> ${data.scheduledTime}</div>`;
+            content += `<div><strong>updated时间:</strong> ${data.updated}</div>`;
             content += `<div><strong>任务结束时间:</strong> ${data.endTime}</div>`;
+            if(data.code) {
+                content += `<div><strong>code:</strong> ${data.code}</div>`;
+                content += `<div><strong>message:</strong> ${data.message}</div>`;
+            }
+
+            content += `<div><strong>expiresAt:</strong> ${data.expiresAt}</div>`;
             content += `<div><strong>origPrompt:</strong> ${data.origPrompt}</div>`;
             
 

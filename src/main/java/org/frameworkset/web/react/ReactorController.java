@@ -64,7 +64,7 @@ public class ReactorController implements InitializingBean {
         String message = questions != null ?(String)questions.get("message"):q;
         ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
         chatAgentMessage.setPrompt( message);//当前消息
-        chatAgentMessage.setModel("deepseek-chat").setTemperature(0.7).setMaxTokens(1024L*1024L*1024L);
+        chatAgentMessage.setModel("deepseek-v4-pro").setTemperature(0.7).setMaxTokens(1024L*1024L*1024L);
 
         chatAgentMessage.setStream( true);
         AIAgent aiAgent = new AIAgent();
@@ -109,7 +109,8 @@ public class ReactorController implements InitializingBean {
         
         
         ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
-        chatAgentMessage.setPrompt( message).setStoreContext(new StoreContext()
+        chatAgentMessage.setPrompt( message)
+                .setStoreContext(new StoreContext()
                 .setSessionId(sessionId).setUserId("user123")
                 .setSessionSize(50));//当前消息
         if(message.contains("小说") || message.contains("故事") || message.contains("穿越")){
@@ -134,13 +135,16 @@ public class ReactorController implements InitializingBean {
         String model = null;
         if(selectedModel.equals("deepseek")) {
             if(deepThink == null || !deepThink) {
-                model = "deepseek-chat";
+                model = "deepseek-v4-pro";
             }
             else {
-                model = "deepseek-reasoner";
+                model = "deepseek-v4-flash";
             }
 //            completionsUrl =   "/chat/completions"; //Deepseek LLM模型服务地址
             
+        }
+        else if(selectedModel.equals("openai")){
+            model = "gpt-5.5";
         }
         else if(selectedModel.equals("minimax")){
             model = "MiniMax-M2.7";
@@ -304,10 +308,10 @@ public class ReactorController implements InitializingBean {
         String model = null;
         if(selectedModel.equals("deepseek")) {
             if(deepThink == null || !deepThink) {
-                model = "deepseek-chat";
+                model = "deepseek-v4-pro";
             }
             else {
-                model = "deepseek-reasoner";
+                model = "deepseek-v4-flash";
             }
 //            completionsUrl =   "/chat/completions"; //Deepseek LLM模型服务地址
 
@@ -1072,7 +1076,7 @@ public class ReactorController implements InitializingBean {
         VideoAgentMessage videoAgentMessage = new VideoAgentMessage();
         String model = null;
         if(selectedModel.equals("volcengine")){
-            model = "doubao-seedance-1-5-pro-251215";
+            model = "doubao-seedance-2-0-260128";
         }
         else if(selectedModel.equals("zhipu")){
             model = "cogvideox-3";
