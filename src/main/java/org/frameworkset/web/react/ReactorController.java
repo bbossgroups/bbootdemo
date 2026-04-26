@@ -295,7 +295,7 @@ public class ReactorController implements InitializingBean {
             BaseFeishuConfig baseFeishuConfig = new BaseFeishuConfig();
             //提示词:创建飞书文档，内容自动生成
 //            bboss应用
-            baseFeishuConfig.setFeishuAppId("cli_a9d43b87aff89cd0")
+            baseFeishuConfig.setFeishuAppId("cli_a9d43b87aff89cd1")
                     .setFeishAppSecret("gIhy0EbVfgQGlpNBN8r10gtqMKMnYCJs");
 
             baseFeishuConfig
