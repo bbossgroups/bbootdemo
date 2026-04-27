@@ -126,9 +126,7 @@ public class ReactorController implements InitializingBean {
             //提示词:创建飞书文档，内容自动生成
 
             //            bboss应用
-            aiAgent.setToolsRegist(new FeishuMcpRegist("feishumcp",
-                    "cli_a9d43b8aff89cd1","gIhy0EbVfgQGlpNB8r10gtqMKMnYCJs",
-                    "search-user,get-user,fetch-file,search-doc,create-doc,fetch-doc,update-doc,list-docs,get-comments,add-comments"));
+            aiAgent.setToolsRegist(new FeishuMcpRegist("feishumcp"));
         }
         //设置模型服务地址
 //        String completionsUrl =  null;
@@ -292,16 +290,9 @@ public class ReactorController implements InitializingBean {
             aiAgent.setToolsRegist(new MCPToolsRegist("12306"));
         }
         else if(message.contains("飞书") || message.contains("文档") || message.contains("知识库")){
-            BaseFeishuConfig baseFeishuConfig = new BaseFeishuConfig();
-            //提示词:创建飞书文档，内容自动生成
-//            bboss应用
-            baseFeishuConfig.setFeishuAppId("cli_a9d43b87aff89cd1")
-                    .setFeishAppSecret("gIhy0EbVfgQGlpNBN8r10gtqMKMnYCJs");
-
-            baseFeishuConfig
-                    .setMcpTools("search-user,get-user,fetch-file,search-doc,create-doc,fetch-doc,update-doc,list-docs,get-comments,add-comments");
+           
             ;
-            aiAgent.setToolsRegist(new FeishuMcpRegist("feishumcp",baseFeishuConfig));
+            aiAgent.setToolsRegist(new FeishuMcpRegist("feishumcp"));
         }
         //设置模型服务地址
 //        String completionsUrl =  null;
