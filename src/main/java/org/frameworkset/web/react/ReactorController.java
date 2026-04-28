@@ -98,6 +98,9 @@ public class ReactorController implements InitializingBean {
         String selectedModel = (String)questions.get("selectedModel");
         Boolean reset = (Boolean) questions.get("reset");
         Boolean deepThink = (Boolean) questions.get("deepThink");
+        if(deepThink == null){
+            deepThink = false;
+        }
         Boolean enableStream = (Boolean) questions.get("enableStream");
         String sessionId = (String)questions.get("sessionId");       
         //重置会议记忆窗口
@@ -109,9 +112,11 @@ public class ReactorController implements InitializingBean {
         
         
         ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
-        chatAgentMessage.setPrompt( message)
+        chatAgentMessage.setPrompt( message).setThinking(deepThink)
                 .setStoreContext(new StoreContext()
-                .setSessionId(sessionId).setUserId("user123")
+                .setSessionId(sessionId)
+                .setUserId("user123")
+                .setRequestId(SimpleStringUtil.getUUID32())
                 .setSessionSize(50));//当前消息
         if(message.contains("小说") || message.contains("故事") || message.contains("穿越")){
             aiAgent.setToolsRegist(new MCPToolsRegist("shuqi"));
@@ -174,12 +179,7 @@ public class ReactorController implements InitializingBean {
 //            completionsUrl =  "/api/paas/v4/chat/completions";
 
             model = "glm-5.1";
-            if(deepThink != null && deepThink) {
-                chatAgentMessage.setThinking(true);
-            }
-            else{
-                chatAgentMessage.setThinking(false);
-            }
+            
         }
         
         else {
@@ -324,7 +324,7 @@ public class ReactorController implements InitializingBean {
 
             if(deepThink == null || !deepThink) {
                 model = "kimi-k2-turbo-preview";
-                chatAgentMessage.addMapParameter("thinking","type","disabled");//kimi-k2.5禁用思维模式
+//                chatAgentMessage.addMapParameter("thinking","type","disabled");//kimi-k2.5禁用思维模式
             }
             else {
                 model = "kimi-k2-thinking";
@@ -337,17 +337,17 @@ public class ReactorController implements InitializingBean {
 //            completionsUrl =  "/api/paas/v4/chat/completions";
 
             model = "glm-5.1";
-            if(deepThink != null && deepThink) {
-                chatAgentMessage.setThinking(true);
-            }
-            else{
-                chatAgentMessage.setThinking(false);
-            }
+//            if(deepThink != null && deepThink) {
+//                chatAgentMessage.setThinking(true);
+//            }
+//            else{
+//                chatAgentMessage.setThinking(false);
+//            }
         }
 
         else {
             model = "qwen3.6-plus";
-            chatAgentMessage.addParameter("enable_thinking",deepThink == null?false:deepThink);
+//            chatAgentMessage.addParameter("enable_thinking",deepThink == null?false:deepThink);
 //            completionsUrl =  "/compatible-mode/v1/chat/completions";//通义千问LLM模型服务地址
 
 
