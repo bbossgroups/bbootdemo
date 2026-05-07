@@ -18,14 +18,12 @@ package org.frameworkset.web.react;
 import com.frameworkset.util.SimpleStringUtil;
 import org.frameworkset.spi.InitializingBean;
 import org.frameworkset.spi.ai.AIAgent;
-import org.frameworkset.spi.ai.material.ReponseStoreFilePathFunction;
 import org.frameworkset.spi.ai.material.StoreFilePathFunction;
 import org.frameworkset.spi.ai.mcp.feishu.FeishuMcpRegist;
 import org.frameworkset.spi.ai.mcp.tools.MCPToolsRegist;
 import org.frameworkset.spi.ai.model.*;
 import org.frameworkset.spi.ai.store.AgentSessionStoreMemory;
 import org.frameworkset.spi.ai.store.StoreContext;
-import org.frameworkset.spi.feishu.BaseFeishuConfig;
 import org.frameworkset.spi.remote.http.HttpRequestProxy;
 import org.frameworkset.util.annotations.RequestBody;
 import org.frameworkset.util.annotations.RequestParam;
@@ -146,6 +144,9 @@ public class ReactorController implements InitializingBean {
 //            completionsUrl =   "/chat/completions"; //Deepseek LLM模型服务地址
             
         }
+		else if(selectedModel.equals("aigw")){
+			model = "aliyun/qwen3.6-plus";
+		}
         else if(selectedModel.equals("openai")){
             model = "gpt-5.5";
         }
@@ -179,7 +180,12 @@ public class ReactorController implements InitializingBean {
 //            completionsUrl =  "/api/paas/v4/chat/completions";
 
             model = "glm-5.1";
-            
+            if(deepThink != null && deepThink) {
+                chatAgentMessage.setThinking(true);
+            }
+            else{
+                chatAgentMessage.setThinking(false);
+            }
         }
         
         else {
@@ -337,12 +343,7 @@ public class ReactorController implements InitializingBean {
 //            completionsUrl =  "/api/paas/v4/chat/completions";
 
             model = "glm-5.1";
-//            if(deepThink != null && deepThink) {
-//                chatAgentMessage.setThinking(true);
-//            }
-//            else{
-//                chatAgentMessage.setThinking(false);
-//            }
+           
         }
 
         else {
@@ -621,12 +622,7 @@ public class ReactorController implements InitializingBean {
             message = "生成一颗桂花树";
         }
         ImageAgentMessage request = new ImageAgentMessage();
-        request.setStoreFilePathFunction(new StoreFilePathFunction() {
-            @Override
-            public String getStoreFilePath(String imageUrl) {
-                return "image/"+SimpleStringUtil.getUUID32() +".jpg";
-            }
-        });
+        
         request.setPrompt( message);
         ImageEvent data = null;
         AIAgent aiAgent = new AIAgent();
@@ -677,7 +673,12 @@ public class ReactorController implements InitializingBean {
 //            completionsUrl = "/api/v1/services/aigc/multimodal-generation/generation";
            
         }
-        data = aiAgent.genImage(selectedModel,request);
+        data = aiAgent.genImage(selectedModel,request,new StoreFilePathFunction() {
+			@Override
+			public String getStoreFilePath(String imageUrl) {
+				return "image/"+SimpleStringUtil.getUUID32() +".jpg";
+			}
+		});
         return data;
         
     }
@@ -699,12 +700,12 @@ public class ReactorController implements InitializingBean {
             message = "生成一颗桂花树";
         }
         ImageAgentMessage request = new ImageAgentMessage();
-        request.setStoreFilePathFunction(new StoreFilePathFunction() {
+		StoreFilePathFunction storeFilePathFunction = new StoreFilePathFunction() {
             @Override
             public String getStoreFilePath(String imageUrl) {
                 return "image/"+SimpleStringUtil.getUUID32() +".jpg";
             }
-        });
+        };
 
         List<String> imagesBase64  = (List)questions.get("imagesBase64");
         String imageUrl = (String)questions.get("imageUrl");
@@ -769,7 +770,7 @@ public class ReactorController implements InitializingBean {
 //            completionsUrl = "/api/v1/services/aigc/multimodal-generation/generation";
 
         }
-        data = aiAgent.genImage(selectedModel,request);
+        data = aiAgent.genImage(selectedModel,request,storeFilePathFunction);
         return data;
 
     }
@@ -897,12 +898,7 @@ public class ReactorController implements InitializingBean {
             audioAgentMessage.addParameter("voice", "Cherry")
                     .addParameter("language_type", "Chinese")
                     //设置音频下载相对路径，将和endpoint组合形成音频文件播放地址
-                    .setStoreFilePathFunction(new StoreFilePathFunction() {
-                        @Override
-                        public String getStoreFilePath(String imageUrl) {
-                            return "audio/"+SimpleStringUtil.getUUID32() +".wav";
-                        }
-                    });
+                     ;
         }
         else if(selectedModel.equals("zhipu")) {
             //https://docs.bigmodel.cn/api-reference/%E6%A8%A1%E5%9E%8B-api/%E6%96%87%E6%9C%AC%E8%BD%AC%E8%AF%AD%E9%9F%B3
@@ -911,17 +907,16 @@ public class ReactorController implements InitializingBean {
                     .addParameter("response_format", "wav")
                     .addParameter("speed", 1.0)
                     .addParameter("volume", 1.0)            
-                    //设置音频下载相对路径，将和endpoint组合形成音频文件播放地址            
-                    .setStoreFilePathFunction(new ReponseStoreFilePathFunction() {
-                        @Override
-                        public String getStoreFilePath(String imageUrl) {
-                            return "audio/"+SimpleStringUtil.getUUID32() +".wav";
-                        }
-                    });
+                    ;
         }
         audioAgentMessage.setModel(model);    
         AIAgent aiAgent = new AIAgent();
-        AudioEvent audioEvent = aiAgent.genAudio(selectedModel,audioAgentMessage);
+        AudioEvent audioEvent = aiAgent.genAudio(selectedModel,audioAgentMessage,new StoreFilePathFunction() {
+			@Override
+			public String getStoreFilePath(String imageUrl) {
+				return "audio/"+SimpleStringUtil.getUUID32() +".wav";
+			}
+		});
         return audioEvent;
     }
 
@@ -949,13 +944,7 @@ public class ReactorController implements InitializingBean {
             model = "qwen3-tts-flash";
             audioAgentMessage.addParameter("voice", "Cherry")
                     .addParameter("language_type", "Chinese");
-            //设置音频下载相对路径，将和endpoint组合形成音频文件播放地址
-            audioAgentMessage.setStoreFilePathFunction(new StoreFilePathFunction() {
-                @Override
-                public String getStoreFilePath(String imageUrl) {
-                    return "audio/" + SimpleStringUtil.getUUID32() + ".wav";
-                }
-            });
+           
         }
         
         else if(selectedModel.equals("zhipu")) {
@@ -973,7 +962,13 @@ public class ReactorController implements InitializingBean {
         audioAgentMessage.setStream(true);
         
         AIAgent aiAgent = new AIAgent();
-        Flux<ServerEvent> flux = aiAgent.streamAudioGen(selectedModel,audioAgentMessage);
+		//设置音频下载相对路径，将和endpoint组合形成音频文件播放地址
+        Flux<ServerEvent> flux = aiAgent.streamAudioGen(selectedModel,audioAgentMessage,new StoreFilePathFunction() {
+			@Override
+			public String getStoreFilePath(String imageUrl) {
+				return "audio/" + SimpleStringUtil.getUUID32() + ".wav";
+			}
+		});
 //        FileOutputStream fos = new FileOutputStream("C:\\data\\ai\\aigenfiles\\audio/audio.wav");
         return flux
 //                .doOnNext(chunk -> {
@@ -1197,17 +1192,16 @@ public class ReactorController implements InitializingBean {
         AIAgent aiAgent = new AIAgent();
         VideoStoreAgentMessage videoStoreAgentMessage = new VideoStoreAgentMessage();
         videoStoreAgentMessage.setTaskId(taskId);
-        videoStoreAgentMessage.setStoreFilePathFunction(new StoreFilePathFunction() {
-            @Override
-            public String getStoreFilePath(String imageUrl) {
-                return "video/" + SimpleStringUtil.getUUID32() + ".mp4";
-            }
-            
-            public String getVideoImageStoreFilePath(String videoImageUrl){
-                return "video/" + SimpleStringUtil.getUUID32() + ".png";
-            }
-        });
-        VideoGenResult videoTaskResult = aiAgent.getVideoTaskResult(selectedModel, videoStoreAgentMessage);
+        VideoGenResult videoTaskResult = aiAgent.getVideoTaskResult(selectedModel, videoStoreAgentMessage,new StoreFilePathFunction() {
+			@Override
+			public String getStoreFilePath(String imageUrl) {
+				return "video/" + SimpleStringUtil.getUUID32() + ".mp4";
+			}
+			
+			public String getVideoImageStoreFilePath(String videoImageUrl){
+				return "video/" + SimpleStringUtil.getUUID32() + ".png";
+			}
+		});
          
 //        String requestUrl = "/api/v1/tasks/"+taskId;
 //        Map taskInfo = HttpRequestProxy.httpGetforObject("qwenvlplus",requestUrl,Map.class);
