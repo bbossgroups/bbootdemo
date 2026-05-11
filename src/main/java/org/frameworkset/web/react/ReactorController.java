@@ -62,7 +62,7 @@ public class ReactorController implements InitializingBean {
         String message = questions != null ?(String)questions.get("message"):q;
         ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
         chatAgentMessage.setPrompt( message);//当前消息
-        chatAgentMessage.setModel("deepseek-v4-pro").setTemperature(0.7).setMaxTokens(1024L*1024L*1024L);
+        chatAgentMessage.setModel("deepseek-v4-pro").setTemperature(0.5);
 
         chatAgentMessage.setStream( true);
         AIAgent aiAgent = new AIAgent();
@@ -167,7 +167,8 @@ public class ReactorController implements InitializingBean {
             
             if(deepThink == null || !deepThink) {
                 model = "kimi-k2-turbo-preview";
-                chatAgentMessage.addMapParameter("thinking","type","disabled");//kimi-k2.5禁用思维模式
+                chatAgentMessage.setThinking(false);
+//                chatAgentMessage.addMapParameter("thinking","type","disabled");//kimi-k2.5禁用思维模式
             }
             else {
                 model = "kimi-k2-thinking";                
