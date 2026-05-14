@@ -133,6 +133,7 @@ configure(allprojects) { project ->
 				[group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: log4j2_version, transitive: true],
 		)
 		api  (
+                [group: 'com.mysql', name: 'mysql-connector-j', version: "8.2.0", transitive: false],
 				//jetty,tomcat二选一，如果需要采用tomcat，则注释jetty，打开tomcat
 
 //				[group: 'com.bbossgroups.boot', name: 'bboot-starter-jetty', version: bboot_version, transitive: true],
