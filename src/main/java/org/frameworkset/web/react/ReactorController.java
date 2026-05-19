@@ -536,8 +536,7 @@ public class ReactorController implements InitializingBean {
         
 //        imageVLAgentMessage.setModelType(AIConstants.AI_MODEL_TYPE_QWEN);
  
-        // 用于累积完整的回答
-        StringBuilder completeAnswer = new StringBuilder();
+ 
         Flux<List<ServerEvent>> flux = null;
         AIAgent aiAgent = new AIAgent();
        
@@ -564,23 +563,7 @@ public class ReactorController implements InitializingBean {
                             event.addExtendData("url","https://www.bbossgroups.com");
                             event.addExtendData("title","bboss官网");
                         }
-                        event.getContentType();
-                        if(!event.isDone() ) {
-                             
-                            // 累积回答内容
-                            if(event.getData() != null) {
-                                completeAnswer.append(event.getData());
-                            }
-                        } else  {
-                            
-                            if( completeAnswer.length() > 0) {
-                                // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                                imageVLAgentMessage.addAgentResultSessionMessage(completeAnswer.toString(),aiAgent);
-                               
-                            }
-
-
-                        }
+                        
                     }
                 });
         
@@ -810,8 +793,6 @@ public class ReactorController implements InitializingBean {
         // 添加当前用户消息
         audioSTTAgentMessage.setPrompt( message);
         
-        // 用于累积完整的回答
-        StringBuilder completeAnswer = new StringBuilder();
         AIAgent aiAgent = new AIAgent();
         Flux<List<ServerEvent>> flux = aiAgent.streamAudioParser(selectedModel,
                          audioSTTAgentMessage)
@@ -831,19 +812,7 @@ public class ReactorController implements InitializingBean {
                     event.addExtendData("url", "https://www.bbossgroups.com");
                     event.addExtendData("title", "bboss官网");
                 }
-                event.getContentType();
-                if (!event.isDone()) {
-                    // 累积回答内容
-                    if (event.getData() != null) {
-                        completeAnswer.append(event.getData());
-                    }
-                } else {
-                    if (completeAnswer.length() > 0) {
-                        // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                        audioSTTAgentMessage.addAgentResultSessionMessage(completeAnswer.toString(),aiAgent);
-
-                    }
-                }
+                
             }
         });
     
