@@ -347,8 +347,7 @@ public class ReactorController implements InitializingBean {
        
         Flux<ServerEvent> flux = aiAgent.streamChat(selectedModel,chatAgentMessage);
 
-        // 用于累积完整的回答
-        StringBuilder completeAnswer = new StringBuilder();
+        
 
         return flux.doOnNext(chunk -> {
 
@@ -377,22 +376,7 @@ public class ReactorController implements InitializingBean {
                             event.addExtendData("url", "https://www.bbossgroups.com");
                             event.addExtendData("title", "bboss官网");
                         }
-                        if(!event.isDone() ) {
-                            // 累积回答内容
-                            if(event.getData() != null) {
-                                completeAnswer.append(event.getData());
-                            }
-                        } else  {
-
-                            if( completeAnswer.length() > 0) {
-                                // 当收到完成信号且有累积内容时，将完整回答添加到会话记忆
-                                chatAgentMessage.addAgentResultSessionMessage(completeAnswer.toString(),aiAgent);
-
-
-                            }
-
-
-                        }
+                        
                     }
                 });
     }
@@ -1179,12 +1163,7 @@ public class ReactorController implements InitializingBean {
     }
 
     public static void initDB(){
-//        SQLUtil.startPool("visualops",//数据源名称
-//                "com.mysql.cj.jdbc.Driver",//oracle驱动
-//                "jdbc:mysql://10.13.6.127:3306/visualops?useUnicode=true&characterEncoding=utf-8&useSSL=false",//mysql链接串
-//                "root","passwd",//数据库账号和口令
-//                "select 1 " //数据库连接校验sql
-//        );
+ 
 
         SQLUtil.startPool("visualops",//数据源名称
                 "com.mysql.cj.jdbc.Driver",//oracle驱动
