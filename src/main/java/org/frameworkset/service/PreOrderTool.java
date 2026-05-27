@@ -62,7 +62,7 @@ public class PreOrderTool {
         
     }
 
-    @Tool(name="flightBook",description = "请根据用户的行程需求，查询并推荐合适的航班。" +
+    @Tool(name="flightBook",description = "请根据用户的行程需求，查询并推荐合适的航班机票。" +
             "需要考虑：出发时间、到达时间、航空公司、价格、准点率等因素。" +
             "给出至少3个推荐选项，并说明理由。")
     public List<Map> flightBook(@ToolParam(name="bookDay",description = "出发时间,例如：5月25日",required = true) String bookDay){
