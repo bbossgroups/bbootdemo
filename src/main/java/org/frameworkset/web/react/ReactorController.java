@@ -147,7 +147,7 @@ public class ReactorController implements InitializingBean {
             model = "gpt-5.5";
         }
         else if(selectedModel.equals("minimax")){
-            model = "MiniMax-M2.7";
+            model = "MiniMax-M3";
         }
 
         else if(selectedModel.equals("hunyuan")){
@@ -292,7 +292,7 @@ public class ReactorController implements InitializingBean {
 
         }
         else if(selectedModel.equals("minimax")){
-            model = "MiniMax-M2.7";
+            model = "MiniMax-M3";
         }
 
         else if(selectedModel.equals("hunyuan")){
