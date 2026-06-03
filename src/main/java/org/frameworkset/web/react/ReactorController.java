@@ -63,6 +63,7 @@ public class ReactorController implements InitializingBean {
         String message = questions != null ?(String)questions.get("message"):q;
         ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
         chatAgentMessage.setPrompt( message);//当前消息
+        chatAgentMessage.setRetry(3);
         chatAgentMessage.setModel("deepseek-v4-pro").setTemperature(0.5);
 
         chatAgentMessage.setStream( true);

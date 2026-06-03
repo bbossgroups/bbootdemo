@@ -28,11 +28,10 @@ import java.util.Map;
  * @Date 2026/5/21
  */
 public class PreOrderTool {
-    @Tool(name="hotelBook",description = "请根据用户的行程需求，查询并推荐合适的酒店。" +
-            "需要考虑：地理位置、价格区间、用户评分、配套设施等因素。" +
-            "给出至少3个推荐选项，并说明理由。")
-    public List<Map> hotelBook(@ToolParam(name="startDay",description = "入驻时间,例如：5月25日",required = true) String startDay,
-                         @ToolParam(name="endDay",description = "离房时间,例如：5月28日",required = true) String endDay){
+    @Tool(name="hotelQuery",description = "根据用户的行程需求，查询合适的酒店。"
+    )
+    public List<Map> hotelQuery(@ToolParam(name="startDay",description = "入驻时间,例如：5月25日",required = true) String startDay,
+                                @ToolParam(name="endDay",description = "离房时间,例如：5月28日",required = true) String endDay){
         List<Map> hotels = new ArrayList<>();
         Map hotelData = new LinkedHashMap();
         hotelData.put("name","迁移山水酒店");
@@ -59,13 +58,14 @@ public class PreOrderTool {
         hotelData.put("position","位于郊区，环境优雅，五星级环境");
         hotels.add(hotelData);
         return hotels;
-        
+
     }
 
-    @Tool(name="flightBook",description = "请根据用户的行程需求，查询并推荐合适的航班机票。" +
-            "需要考虑：出发时间、到达时间、航空公司、价格、准点率等因素。" +
-            "给出至少3个推荐选项，并说明理由。")
-    public List<Map> flightBook(@ToolParam(name="bookDay",description = "出发时间,例如：5月25日",required = true) String bookDay){
+    @Tool(name="flightQuery",description = "根据用户的行程需求，查询合适的航班机票。" )
+    public List<Map> flightQuery(@ToolParam(name="bookDay",description = "出发时间,例如：5月25日",required = true) String bookDay,
+                                 @ToolParam(name="arriveDay",description = "到达时间,例如：5月28日",required = true) String arriveDay,
+                                 @ToolParam(name="fromStation",description = "出发地,例如：长沙",required = true) String fromStation,
+                                 @ToolParam(name="toStation",description = "到达地,例如：北京",required = true) String toStation){
         List<Map> hotels = new ArrayList<>();
         Map hotelData = new LinkedHashMap();
         hotelData.put("name","国航6678");
