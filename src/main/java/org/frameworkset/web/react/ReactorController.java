@@ -19,6 +19,7 @@ import com.frameworkset.common.poolman.util.SQLUtil;
 import com.frameworkset.util.SimpleStringUtil;
 import org.frameworkset.spi.InitializingBean;
 import org.frameworkset.spi.ai.AIAgent;
+import org.frameworkset.spi.ai.material.ReponseStoreFilePathFunction;
 import org.frameworkset.spi.ai.material.StoreFilePathFunction;
 import org.frameworkset.spi.ai.mcp.feishu.FeishuMcpRegist;
 import org.frameworkset.spi.ai.mcp.tools.MCPToolsRegist;
@@ -106,6 +107,7 @@ public class ReactorController implements InitializingBean {
         
         
         ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
+        chatAgentMessage.setRetry(3);
         chatAgentMessage.setPrompt( message).setThinking(deepThink)
                 .setStoreContext(new StoreContext()
                 .setSessionId(sessionId).setResetSession(reset != null && reset && sessionId != null)  //重置会议记忆窗口
@@ -437,7 +439,7 @@ public class ReactorController implements InitializingBean {
 //            imageVLAgentMessage.setTemperature(0.6);
 
         }
-        else if(selectedModel.equals("zhipu")){//字节豆包
+        else if(selectedModel.equals("zhipu")){//
 //            completionsUrl =  "/api/paas/v4/chat/completions";
             model = "glm-4.6v";
             //支持思考程度可调节（reasoning effort）：分为 minimal、low、medium、high 四种模式，其中minimal为不思考
@@ -567,7 +569,7 @@ public class ReactorController implements InitializingBean {
             message = "生成一颗桂花树";
         }
         ImageAgentMessage request = new ImageAgentMessage();
-        
+        request.setRetry(3);
         request.setPrompt( message);
         ImageEvent data = null;
         AIAgent aiAgent = new AIAgent();
@@ -821,14 +823,22 @@ public class ReactorController implements InitializingBean {
             message = "诗歌朗诵：床前明月光；疑似地上霜；举头望明月；低头思故乡。";
         }
         AudioAgentMessage audioAgentMessage = new AudioAgentMessage();
+        audioAgentMessage.setRetry(3);
         audioAgentMessage.setPrompt(message);
         String model = null;
+        StoreFilePathFunction storeFilePathFunction = null;
         if(selectedModel.equals("qwenvlplus")) {
             model = "qwen3-tts-flash";
             audioAgentMessage.addParameter("voice", "Cherry")
                     .addParameter("language_type", "Chinese")
                     //设置音频下载相对路径，将和endpoint组合形成音频文件播放地址
                      ;
+            storeFilePathFunction = new StoreFilePathFunction() {
+                @Override
+                public String getStoreFilePath(String imageUrl) {
+                    return "audio/"+SimpleStringUtil.getUUID32() +".wav";
+                }
+            };
         }
         else if(selectedModel.equals("zhipu")) {
             //https://docs.bigmodel.cn/api-reference/%E6%A8%A1%E5%9E%8B-api/%E6%96%87%E6%9C%AC%E8%BD%AC%E8%AF%AD%E9%9F%B3
@@ -838,15 +848,16 @@ public class ReactorController implements InitializingBean {
                     .addParameter("speed", 1.0)
                     .addParameter("volume", 1.0)            
                     ;
+            storeFilePathFunction = new ReponseStoreFilePathFunction() {
+                @Override
+                public String getStoreFilePath(String imageUrl) {
+                    return "audio/"+SimpleStringUtil.getUUID32() +".wav";
+                }
+            };
         }
         audioAgentMessage.setModel(model);    
         AIAgent aiAgent = new AIAgent();
-        AudioEvent audioEvent = aiAgent.genAudio(selectedModel,audioAgentMessage,new StoreFilePathFunction() {
-			@Override
-			public String getStoreFilePath(String imageUrl) {
-				return "audio/"+SimpleStringUtil.getUUID32() +".wav";
-			}
-		});
+        AudioEvent audioEvent = aiAgent.genAudio(selectedModel,audioAgentMessage,storeFilePathFunction);
         return audioEvent;
     }
 
