@@ -467,7 +467,7 @@ public class ReactorController implements InitializingBean {
         }
         
         else if(selectedModel.equals("jiutian")){//字节豆包
-            //九天模型参考文档：https://jiutian.10086.cn/portal/common-helpcenter#/document/1160?platformCode=DMX_TYZX
+            //九天模型参考文档：https://jiutian.30086.cn/portal/common-helpcenter#/document/1160?platformCode=DMX_TYZX
 //            completionsUrl =  "/largemodel/moma/api/v3/image/text";
             model = "LLMImage2Text";
             //支持思考程度可调节（reasoning effort）：分为 minimal、low、medium、high 四种模式，其中minimal为不思考
