@@ -179,7 +179,7 @@ public class ReactorController implements InitializingBean {
         else if(selectedModel.equals("zhipu")){
 //            completionsUrl =  "/api/paas/v4/chat/completions";
 
-            model = "glm-5.1";
+            model = "glm-5.2";
             if(deepThink != null && deepThink) {
                 chatAgentMessage.setThinking(true);
             }
@@ -201,7 +201,7 @@ public class ReactorController implements InitializingBean {
         //设置历史消息
         chatAgentMessage
         //不配置以下参数时，默认值设置如下
-                .setStream( enableStream)
+                .setStream( enableStream).setRetry(3)
                 .setMaxTokens( 8192L);
 //                .addParameter("temperature", 0.7);//kimi 2.5不能设置temperature参数
  
