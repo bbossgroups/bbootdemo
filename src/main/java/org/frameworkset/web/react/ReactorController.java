@@ -108,7 +108,7 @@ public class ReactorController implements InitializingBean {
         
         ChatAgentMessage chatAgentMessage = new ChatAgentMessage();
         chatAgentMessage.setRetry(3);
-        chatAgentMessage.setPrompt( message).setThinking(deepThink)
+        chatAgentMessage.setPrompt( message).setSystemPrompt("你是万能问答小助手小明，可以回答用户各种问题").setThinking(deepThink)
                 .setStoreContext(new StoreContext()
                 .setSessionId(sessionId).setResetSession(reset != null && reset && sessionId != null)  //重置会议记忆窗口
                         .setDataSource("visualops")
